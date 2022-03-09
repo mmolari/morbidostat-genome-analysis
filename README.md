@@ -17,4 +17,4 @@ scp -r username@login.scicore.unibas.ch:/scicore/home/neher/GROUP/data/2022_nano
 ```
 Substituting `username` with the appropriate username.
 
-The test dataset has been extracted from the morbidostat run labeled `2022-02-08-RT_test`. It contains 2 vials, each one having 3 timepoints. For the first timepoint the annotated genome is included. For the rest of the timepoints, only fastq reads are provided in the `reads.fastq.gz` files. These files contain only a subset of all the reads (first 10'000 lines of the original fastq file). This corresponds to ~3% of all the reads, and these files are roughly 20-30 Mb each.
+The test dataset has been extracted from the morbidostat run labeled `2022-02-08-RT_test`. It contains 2 vials (vial 2 and 3), each one having 3 timepoints (timepoint 1, 2 and 5). For timepoint 1 the annotated genome is included. For the rest of the timepoints, only fastq reads are provided in the `reads.fastq.gz` files. These files contain only a subset of all the reads (first 10'000 lines of the original fastq file). This corresponds to ~3% of all the reads, and these files are roughly 20-30 Mb each.

@@ -26,7 +26,7 @@ The workflow `pileup.nf` builds a pileup of the reads. For every vial, it maps r
 
 ```bash
 nextflow run pileup.nf \
-    --profile cluster \
+    -profile cluster \
     --input_fld test_dataset \
     --time_beg 1 \
     --qual_min 15 \
@@ -41,6 +41,6 @@ The input parameters are:
 - `qual_min` and `max_insertion_size` : parameters of the script used to build the pileup. Only reads with quality higher than the threshold are used, and only insertions shorter than the threshold are considered.
 
 results are saved in the `results` folder, with a structure that mirrors the `vial_n/timepoint_n` structure of the input folder. Each of these subfolders will contain the following files:
-- `reads.sorted.bam` : sorted `bam` file containing the mapping of the reads against the reference genome.
+- `reads.sorted.bam` and `reads.sorted.bam.bai` : sorted `bam` file (and corresponding index) containing the mapping of the reads against the reference genome.
 - `allele_counts.npz` : pileup of the reads. This is a numpy tensor with dimension (2,6,L) corresponding to (1) forward-reverse reads, (2) allele `["A", "C", "G", "T", "-", "N"]` and (3) position.
 - `insertions.pkl.gz` : a nested dictionary of insertions, saved in pickle format and compressed with gzip. The structure is `position -> sequence -> [n. forward reads, n. reverse reads]`.

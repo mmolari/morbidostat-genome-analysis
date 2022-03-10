@@ -2,4 +2,7 @@ test_dataset
 .vscode
 mytest
 work
-.nextflow
+.nextflow*
+reports
+results
+makefile

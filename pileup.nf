@@ -105,7 +105,7 @@ process index_sorted_reads {
 // Perform the pileup with richard's script
 process pileup {
 
-    label 'q30m_1core'
+    label 'q6h_1core'
 
     publishDir "results/${input_dir.getName()}/vial_${vial}/time_${timepoint}/", mode: 'copy'
 

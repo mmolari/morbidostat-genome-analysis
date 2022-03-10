@@ -71,14 +71,14 @@ process sort_and_index {
 
     script:
         """
-        samtools sort reads.sam > reads.sorted.bam
+        samtools sort -@ ${task.cpus} reads.sam > reads.sorted.bam
         """
 }
 
 // Perform the pileup with richard's script
 process pileup {
 
-    label 'q30m'
+    label 'q30m_1core'
 
     publishDir "results/${input_dir.getName()}/vial_${vial}/time_${timepoint}/", mode: 'symlink'
 

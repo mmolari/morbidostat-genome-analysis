@@ -9,10 +9,15 @@ params.time_beg = "1"
 params.qual_min = 15
 params.max_insertion_size = 1000
 
+// input files directory
 input_dir = file(params.input_fld)
 assert input_dir.isDirectory()
+
+// source scripts directory
 script_dir = file("$baseDir/scripts")
 
+// string corresponding to the first timepoint
+time_beg_id = params.time_beg as String
 
 // Function to extract vial number and timepoint from the path of the input file
 def extract_vial_timepoint(x, ending) {
@@ -28,7 +33,7 @@ reads_in = Channel.fromPath("${input_dir}/vial_*/time_*/reads.fastq.gz")
 // filtered so that only the first timepoint is kept
 genome_in = Channel.fromPath("${input_dir}/vial_*/time_*/assembled_genome/assembly.fna")
     .map { extract_vial_timepoint(it, "assembled_genome/assembly.fna")}
-    .filter { it.timepoint == params.time_beg } 
+    .filter { it.timepoint == time_beg_id} 
 
 
 //  combine each set of reads with the input genome from the first timepoint

@@ -62,11 +62,11 @@ process map_reads_to_genome {
 
 
 // transform the sam file into a sorted bam file
-process sort_and_index {
+process sort_mapped_reads {
 
     label 'q30m'
 
-    publishDir "results/${input_dir.getName()}/vial_${vial}/time_${timepoint}/", mode: 'symlink'
+    publishDir "results/${input_dir.getName()}/vial_${vial}/time_${timepoint}/", mode: 'copy'
 
     input:
         tuple val(vial), val(timepoint), file("reads.sam") from minimap_out
@@ -80,15 +80,37 @@ process sort_and_index {
         """
 }
 
+// duplicate the channel for the indexing and the pileup
+samtools_out.into { index_in; pileup_in}
+
+// Create an index for the bam file
+process index_sorted_reads {
+
+    label 'q30m'
+
+    publishDir "results/${input_dir.getName()}/vial_${vial}/time_${timepoint}/", mode: 'copy'
+
+    input:
+        tuple val(vial), val(timepoint), file("reads.sorted.bam") from index_in
+
+    output:
+        path("reads.sorted.bam.bai")
+
+    script:
+        """
+        samtools index -@ ${task.cpus} reads.sorted.bam
+        """
+}
+
 // Perform the pileup with richard's script
 process pileup {
 
     label 'q30m_1core'
 
-    publishDir "results/${input_dir.getName()}/vial_${vial}/time_${timepoint}/", mode: 'symlink'
+    publishDir "results/${input_dir.getName()}/vial_${vial}/time_${timepoint}/", mode: 'copy'
 
     input:
-        tuple val(vial), val(timepoint), file("reads.sorted.bam") from samtools_out
+        tuple val(vial), val(timepoint), file("reads.sorted.bam") from pileup_in
 
     output:
         path("pileup/allele_counts.npz")

@@ -44,3 +44,15 @@ results are saved in the `results` folder, with a structure that mirrors the `vi
 - `reads.sorted.bam` and `reads.sorted.bam.bai` : sorted `bam` file (and corresponding index) containing the mapping of the reads against the reference genome.
 - `allele_counts.npz` : pileup of the reads. This is a numpy tensor with dimension (2,6,L) corresponding to (1) forward-reverse reads, (2) allele `["A", "C", "G", "T", "-", "N"]` and (3) position.
 - `insertions.pkl.gz` : a nested dictionary of insertions, saved in pickle format and compressed with gzip. The structure is `position -> sequence -> [n. forward reads, n. reverse reads]`.
+
+
+## workflow: summary plots with pileup analysis
+
+Usage of single drawing scripts is:
+
+```bash
+python3 scripts/pileupplots_consensus_frequency.py \
+    --vial_fld results/2022-02-08_RT_test/vial_02 \
+    --fig_fld     figs/2022-02-08_RT_test/vial_02 \
+    --show
+```

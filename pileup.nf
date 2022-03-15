@@ -37,11 +37,37 @@ genome_in = Channel.fromPath("${input_dir}/vial_*/time_*/assembled_genome/assemb
 
 
 //  combine each set of reads with the input genome from the first timepoint
-minimap_in = genome_in.cross(reads_in)
+genome_in.cross(reads_in)
     .map {
         // returns: [vial n., timepoint, reference genome, reads]
         it -> [it[0].vial, it[1].timepoint, it[0].file, it[1].file]
     }
+    .into { minimap_in; symlink_creation}
+
+// function to create symlinks of reference genomes
+def save_genome_symlink(vial, timepoint, genome_fa_file) {
+
+    // make destination folder 
+    dest_str = "$baseDir/results/${input_dir.getName()}/vial_${vial}/time_${timepoint}/"
+    dest_dir = file(dest_str)
+    dest_dir.mkdirs()
+
+    // define names of destination files
+    gf_fa_dest = dest_str + "ref_genome.fa"
+    gf_gbk_dest = dest_str + "ref_genome.gbk"
+
+    // define genbank source file name
+    genome_gbk_file = (genome_fa_file as String).replaceFirst(/assembly.fna$/, "assembly.gbk")
+
+    // create symlinks
+    genome_fa_file.mklink(gf_fa_dest, overwrite:true)
+    file(genome_gbk_file).mklink(gf_gbk_dest, overwrite:true)
+
+    return "created symlink for reference genome for vial $vial timepoint $timepoint"
+}
+
+// create symlinks for reference genome
+symlink_creation.map { save_genome_symlink(it[0], it[1], it[2]) } .view()
 
 // map reads to the reference genome, the output is a sam file
 process map_reads_to_genome {
@@ -105,7 +131,7 @@ process index_sorted_reads {
 // Perform the pileup with richard's script
 process pileup {
 
-    label 'q30m_1core'
+    label 'q6h_1core'
 
     publishDir "results/${input_dir.getName()}/vial_${vial}/time_${timepoint}/", mode: 'copy'
 

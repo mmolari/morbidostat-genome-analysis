@@ -12,15 +12,6 @@ except:
     from .pileupplots_utils import *
 
 
-# def cumulative_histograms(coverages, ax, colors, plotmeans, **kwargs):
-#     """Draw the cumulative distributions for coverage."""
-#     means = {tp: arr.mean() for tp, arr in coverages.items()}
-#     for tp, arr in coverages.items():
-#         ax.hist(arr, label=tp, histtype="step", color=colors[tp], **kwargs)
-#         if plotmeans:
-#             ax.axvline(means[tp], ls=":", color=colors[tp])
-
-
 def average_every_step(arr, step):
     """Return an average of the array every `step` positions. Also
     returns the position corresponding to each average."""

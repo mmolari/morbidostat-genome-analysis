@@ -13,15 +13,6 @@ except:
     from .pileupplots_utils import *
 
 
-# def cumulative_histograms(frequencies, ax, colors, plotmeans, **kwargs):
-#     """plot the cumulative histogram of frequencies"""
-#     means = {tp: arr.mean() for tp, arr in frequencies.items()}
-#     for tp, arr in frequencies.items():
-#         ax.hist(arr, label=tp, histtype="step", color=colors[tp], **kwargs)
-#         if plotmeans:
-#             ax.axvline(means[tp], ls=":", color=colors[tp])
-
-
 def consensus_freq_signal(pileups, cons_freqs, freq_threshold, ref_genome_idxs):
     """
     Extract statistics for relevant trajectories, whose consensus frequency drops below

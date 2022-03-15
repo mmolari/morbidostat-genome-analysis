@@ -48,7 +48,21 @@ results are saved in the `results` folder, with a structure that mirrors the `vi
 
 ## workflow: summary plots with pileup analysis
 
-Usage of single drawing scripts is:
+The workflow `pileup_plots.nf` executes scripts to analyze the results of the pileup. The workflow can be launched with:
+
+```bash
+nextflow run pileup_plots.nf \
+    -profile cluster \
+    --input_fld results/test_dataset \
+    -resume
+```
+The `--input_fld` flag is used to specify the folder in which the results of the previous workflow are saved.
+The output figures are saved in `figures/subfolder` where the subfolder has the name of the run, and they are separated by vial.
+The executed scripts are:
+- `pileupplots_coverage.py`
+- `pileupplots_consensus_frequency.py`
+
+For each of these scripts, usage is:
 
 ```bash
 python3 scripts/pileupplots_consensus_frequency.py \
@@ -56,3 +70,8 @@ python3 scripts/pileupplots_consensus_frequency.py \
     --fig_fld     figs/2022-02-08_RT_test/vial_02 \
     --show
 ```
+
+Where:
+- `--vial_fld` is the folder containing the results for a single vial (pileup, reference genome...)
+- `--fig_fld` is the output folder in which to save figures (must exist)
+- `--show` if specified figures are visualized with `plt.show()`, and otherwise they are simply saved.

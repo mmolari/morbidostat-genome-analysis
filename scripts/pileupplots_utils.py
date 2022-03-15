@@ -108,3 +108,12 @@ def color_dict(pileups):
     T = len(pileups)
     colors = {tp: cmap(n / (T - 1)) for n, tp in enumerate(pileups)}
     return colors
+
+
+def cumulative_histograms(items_dict, ax, colors, plotmeans, **kwargs):
+    """plot the cumulative histogram of a dictionary of items"""
+    means = {tp: arr.mean() for tp, arr in items_dict.items()}
+    for tp, arr in items_dict.items():
+        ax.hist(arr, label=tp, histtype="step", color=colors[tp], **kwargs)
+        if plotmeans:
+            ax.axvline(means[tp], ls=":", color=colors[tp])

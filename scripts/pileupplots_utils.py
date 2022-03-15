@@ -22,6 +22,7 @@ def argparser():
 
 
 def show_function(do_show):
+    """returns a function to either show or close a figure."""
     if do_show:
         return lambda: plt.show()
     else:
@@ -29,6 +30,9 @@ def show_function(do_show):
 
 
 def savefig_function(path):
+    """returns a function that saves the figure in the right path with
+    the given name"""
+
     def savefunc(name):
         plt.savefig(path / name)
 
@@ -82,13 +86,19 @@ def ref_genome_to_nucl_id(ref_genome):
     return np.array([nuc_idx[x] for x in nseq])
 
 
-def consensus_frequency(pileup, ref_genome_idxs):
+def consensus_frequency(pileup, ref_genome_idxs, count_threshold=5):
     """Returns the consensus frequencies (n. times a nucleotide different from
     the one on the genome is observed). Gaps are discarded"""
     tot_pileup = pileup.sum(axis=0)[:4, :]  # keep only nucleotides, no N or gap
     assert np.all(ref_genome_idxs < 4), "reference sequence includes gaps or Ns"
     n_consensus = np.choose(ref_genome_idxs, tot_pileup)
-    consensus_freq = n_consensus / tot_pileup.sum(axis=0)
+    consensus_freq = np.zeros_like(n_consensus, dtype=float)
+    position_tot = tot_pileup.sum(axis=0)
+    mask = position_tot > 0
+    consensus_freq[mask] = n_consensus[mask] / position_tot[mask]
+    consensus_freq[~mask] = np.nan
+    # set reads with less counts than the threshold to NaN
+    consensus_freq[position_tot < count_threshold] = np.nan
     return consensus_freq
 
 

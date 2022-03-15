@@ -5,8 +5,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import re
 
-from collections import defaultdict
-from Bio import SeqIO
 
 try:
     from pileupplots_utils import *
@@ -49,7 +47,7 @@ if __name__ == "__main__":
     savefig = savefig_function(fig_path)
 
     # get vial number
-    vial = re.search("/vial_(\d+)/?$", str(data_path)).groups()[0]
+    vial = re.search("vial_(\d+)/?$", str(data_path)).groups()[0]
     print(f"preparing coverage plots for vial {vial}")
 
     # load pileups and reference genome
@@ -67,7 +65,8 @@ if __name__ == "__main__":
 
     # histogram of coverages
     ax = axs["A"]
-    bins = np.arange(300)
+    maxcov = max([max(cov) for cov in coverages.values()])
+    bins = np.arange(maxcov)
     cumulative_histograms(
         coverages, ax, colors, plotmeans=True, bins=bins, cumulative=True
     )

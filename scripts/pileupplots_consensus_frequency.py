@@ -1,5 +1,4 @@
 # %%
-from turtle import position
 import numpy as np
 import pathlib as pth
 import matplotlib as mpl
@@ -7,7 +6,6 @@ import matplotlib.pyplot as plt
 import re
 
 from collections import defaultdict
-from Bio import SeqIO
 
 try:
     from pileupplots_utils import *
@@ -91,7 +89,7 @@ if __name__ == "__main__":
     savefig = savefig_function(fig_path)
 
     # get vial number
-    vial = re.search("/vial_(\d+)/?$", str(data_path)).groups()[0]
+    vial = re.search("vial_(\d+)/?$", str(data_path)).groups()[0]
     print(f"preparing frequency plots for vial {vial}")
 
     # load pileups and reference genome
@@ -106,9 +104,20 @@ if __name__ == "__main__":
 
     # evaluate positions with interesting consensus frequency deviations
     freq_thr = 0.5
-    f_positions, f_traj, f_stats = consensus_freq_signal(
-        pileups, cons_freqs, freq_thr, ref_genome_idxs
-    )
+    end_loop = False
+    while True:
+        print(f"evaluating positions with cons. frequency variation, f<{freq_thr}")
+        f_positions, f_traj, f_stats = consensus_freq_signal(
+            pileups, cons_freqs, freq_thr, ref_genome_idxs
+        )
+        print(f"n. trajectories retained = {len(f_positions)}")
+        if len(f_positions) <= 50:
+            break
+
+        if freq_thr <= 0.05:
+            break
+
+        freq_thr /= 1.25
 
     # assign colors to timepoints
     colors = color_dict(pileups)
@@ -139,9 +148,9 @@ if __name__ == "__main__":
         ax.plot(x[mask], freq[mask], ".", label=tp, color=colors[tp])
     ax.set_xlabel("position on the genome (bp)")
     ax.set_ylabel(f"consensus frequency (color if f<{freq_thr})")
-    ax.set_ylim(0, 1)
+    ax.set_ylim(-0.05, 1.05)
     plt.tight_layout()
-    savefig("consensus_freq_on_genome.pdf")
+    savefig("consensus_freq_vs_position.pdf")
     show()
 
     # %%
@@ -149,6 +158,10 @@ if __name__ == "__main__":
 
     # number of trajectories and timepoints
     Ntr, T = f_traj.shape
+
+    if Ntr > 50:
+        print("WARNING: only first 50 traj plotted")
+        Ntr = 50
 
     fig, axs = plt.subplots(Ntr, 1, figsize=(6, Ntr * 1.7), sharex=True)
 
@@ -158,11 +171,15 @@ if __name__ == "__main__":
         ax = axs[ntr]
         ax.plot(x, f_traj[ntr], "o-", color="k", label="tot")
         fc, ft = f_stats["ncons_fwd"][:, ntr], f_stats["ntot_fwd"][:, ntr]
-        fwd_freq = fc / ft
+        fwd_freq = np.zeros_like(ft, dtype=float)
+        fwd_freq[ft == 0] = np.nan
+        fwd_freq = np.divide(fc, ft, where=ft > 0, out=fwd_freq)
         rc, rt = f_stats["ncons_rev"][:, ntr], f_stats["ntot_rev"][:, ntr]
-        rev_freq = rc / rt
-        ax.plot(x, fwd_freq, "--", label="fwd")
-        ax.plot(x, rev_freq, "--", label="rev")
+        rev_freq = np.zeros_like(rt, dtype=float)
+        rev_freq[rt == 0] = np.nan
+        rev_freq = np.divide(rc, rt, where=rt > 0, out=rev_freq)
+        ax.plot(x, fwd_freq, "--", marker="x", label="fwd")
+        ax.plot(x, rev_freq, "--", marker="x", label="rev")
         ax.set_ylim(-0.05, 1.05)
         ax.set_title(f"position = {f_positions[ntr]:d}")
 
@@ -173,5 +190,5 @@ if __name__ == "__main__":
 
     fig.supylabel("consensus frequency")
     plt.tight_layout()
-    savefig("consensus_freq_trajs.pdf")
+    savefig("consensus_freq_trajectories.pdf")
     show()

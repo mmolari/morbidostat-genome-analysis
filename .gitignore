@@ -6,3 +6,5 @@ work
 reports
 results
 makefile
+figures
+__pycache__/

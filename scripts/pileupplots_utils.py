@@ -102,12 +102,92 @@ def consensus_frequency(pileup, ref_genome_idxs, count_threshold=5):
     return consensus_freq
 
 
+def gap_count(pileup):
+    """Given a pileup returns two matrices, one for the number of gaps and
+    one for the number of non-gap reads. The first index of the matrix refers to
+    forward or backward reads."""
+    ngaps = pileup[:, 4, :]
+    nnucl = pileup.sum(axis=1) - ngaps
+    return ngaps, nnucl
+
+
+def gap_frequency(ngaps, nnucl):
+    """Given the two matrices produced by the `gap_count` function, it evaluates
+    The gap frequency."""
+    ng = ngaps.sum(axis=0)
+    nn = nnucl.sum(axis=0)
+    nt = ng + nn
+    freq = np.zeros_like(ng, dtype=float) * np.nan
+    freq = np.divide(ng, nt, where=nt > 0, out=freq)
+    return freq
+
+
+def find_top_N(arr, N):
+    """returns the indexes and values of the top N values in the array"""
+    order = np.argsort(arr)
+    take = min(N, len(arr))
+    idxs = order[-take:]
+    return idxs, arr[idxs]
+
+
+def find_bottom_N(arr, N):
+    """returns the indexes and values of the bottom N values in the array"""
+    order = np.argsort(arr)
+    take = min(N, len(arr))
+    idxs = order[:take]
+    return idxs, arr[idxs]
+
+
 def color_dict(pileups):
     """Dictionary that assigns a color to every timepoint."""
     cmap = plt.get_cmap("rainbow")
     T = len(pileups)
     colors = {tp: cmap(n / (T - 1)) for n, tp in enumerate(pileups)}
     return colors
+
+
+def safe_division(a, b, threshold=0):
+    """Safe division between two arrays, returning nan if the value of the divisor
+    is below threshold"""
+    res = np.zeros_like(a, dtype=float) * np.nan
+    mask = np.array(b) > threshold
+    res = np.divide(a, b, where=mask, out=res)
+    return res
+
+
+def extract_trajectories(n_true, n_tot, idxs, threshold):
+    """Extract frequency trajectories for different positions on the genome.
+    See the documentation of `extract_trajectory`"""
+    times = sorted(list(n_tot.keys()))
+    trajs = {}
+    for idx in idxs:
+        trajs[idx] = extract_trajectory(n_true, n_tot, idx, times, threshold)
+    return trajs
+
+
+def extract_trajectory(n_true, n_tot, idx, times, threshold):
+    """Given two dictionaries (n_true, n_tot) with the number of times an outcome is
+    observed and the total number of times (organized as time -> [fwd/rev , position])
+    it creates a trajectory containing the frequency of outcome on forward, reverse and total
+    observation. This is specific for the given position (idx argument).
+    The value of `times` specifies the order in which timepoints should appear. Points
+    with less than `threshold` observations are not displayed."""
+    lists = [n_true, n_tot]
+    nf, Nf = [np.array([l[t][0, idx] for t in times]) for l in lists]
+    nr, Nr = [np.array([l[t][1, idx] for t in times]) for l in lists]
+    tr = {}
+    tr["freq_f"] = safe_division(nf, Nf, threshold)
+    tr["freq_r"] = safe_division(nr, Nr, threshold)
+    tr["freq_t"] = safe_division(nf + nr, Nf + Nr, threshold)
+    return tr
+
+
+def plot_trajectory(ax, traj):
+    """Utility to plot a single frequency trajectory"""
+    x = np.arange(len(traj["freq_t"]))
+    ax.plot(x, traj["freq_f"], "x-")
+    ax.plot(x, traj["freq_r"], "x-")
+    ax.plot(x, traj["freq_t"], "ko-")
 
 
 def cumulative_histograms(items_dict, ax, colors, plotmeans, **kwargs):
@@ -117,3 +197,12 @@ def cumulative_histograms(items_dict, ax, colors, plotmeans, **kwargs):
         ax.hist(arr, label=tp, histtype="step", color=colors[tp], **kwargs)
         if plotmeans:
             ax.axvline(means[tp], ls=":", color=colors[tp])
+
+
+def plot_stepwise_average(arr, step, ax, **kwargs):
+    """plot the stepwise average of an array"""
+    L = len(arr)
+    N = L // step
+    x = np.arange(N) * step + step / 2
+    avg = arr[: N * step].reshape(-1, step).mean(axis=1)
+    ax.plot(x, avg, **kwargs)

@@ -26,9 +26,9 @@ if __name__ == "__main__":
 
     # %%
 
-    data_path = pth.Path("../results/2022-02-08_RT_test/vial_04/")
-    savefig = lambda x: None
-    show = lambda: plt.show()
+    # data_path = pth.Path("../results/2022-02-08_RT_test/vial_04/")
+    # savefig = lambda x: None
+    # show = lambda: plt.show()
 
     # get vial number
     vial = re.search("vial_(\d+)/?$", str(data_path)).groups()[0]

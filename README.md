@@ -62,6 +62,7 @@ The output figures are saved in `figures/subfolder` where the subfolder has the 
 The executed scripts are:
 - `pileupplots_coverage.py`
 - `pileupplots_consensus_frequency.py`
+- `pileupplots_gaps.py`
 
 For each of these scripts, usage is:
 

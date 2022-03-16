@@ -1,25 +1,13 @@
 # %%
 import numpy as np
 import pathlib as pth
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import re
-
 
 try:
     from pileupplots_utils import *
 except:
     from .pileupplots_utils import *
-
-
-def average_every_step(arr, step):
-    """Return an average of the array every `step` positions. Also
-    returns the position corresponding to each average."""
-    L = arr.size
-    floor = (L // step) * step
-    x = (np.arange(L // step) * step) + step // 2
-    subarr = arr[:floor].reshape(-1, step).mean(axis=1)
-    return x, subarr
 
 
 # %%

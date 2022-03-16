@@ -199,10 +199,17 @@ def cumulative_histograms(items_dict, ax, colors, plotmeans, **kwargs):
             ax.axvline(means[tp], ls=":", color=colors[tp])
 
 
-def plot_stepwise_average(arr, step, ax, **kwargs):
-    """plot the stepwise average of an array"""
+def average_every_step(arr, step):
+    """Return an average of the array every `step` positions. Also
+    returns the position corresponding to each average."""
     L = len(arr)
     N = L // step
     x = np.arange(N) * step + step / 2
     avg = arr[: N * step].reshape(-1, step).mean(axis=1)
+    return x, avg
+
+
+def plot_stepwise_average(arr, step, ax, **kwargs):
+    """plot the stepwise average of an array"""
+    x, avg = average_every_step(arr, step)
     ax.plot(x, avg, **kwargs)

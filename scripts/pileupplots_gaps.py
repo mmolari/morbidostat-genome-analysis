@@ -1,11 +1,8 @@
 # %%
 import numpy as np
 import pathlib as pth
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import re
-
-from collections import defaultdict
 
 try:
     from pileupplots_utils import *

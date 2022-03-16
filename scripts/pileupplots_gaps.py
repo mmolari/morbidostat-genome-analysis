@@ -134,6 +134,7 @@ if __name__ == "__main__":
         ax.set_xticks(np.arange(len(times)))
         ax.set_xticklabels(times)
     fig.supylabel("gap frequency")
+    plt.tight_layout()
     savefig("gap_max_finalfreq_trajs.pdf")
     show()
 
@@ -154,6 +155,7 @@ if __name__ == "__main__":
         ax.set_xticks(np.arange(len(times)))
         ax.set_xticklabels(times)
     fig.supylabel("gap frequency")
+    plt.tight_layout()
     savefig("gap_max_deltafreq_trajs.pdf")
     show()
 # %%

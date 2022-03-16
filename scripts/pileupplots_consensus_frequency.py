@@ -24,11 +24,11 @@ if __name__ == "__main__":
     show = show_function(args.show)
     savefig = savefig_function(fig_path)
 
-    # # %%
+    # %%
 
-    # data_path = pth.Path("../results/2022-02-08_RT_test/vial_02/")
-    # savefig = lambda x: None
-    # show = lambda: plt.show()
+    data_path = pth.Path("../results/2022-02-08_RT_test/vial_04/")
+    savefig = lambda x: None
+    show = lambda: plt.show()
 
     # get vial number
     vial = re.search("vial_(\d+)/?$", str(data_path)).groups()[0]
@@ -160,7 +160,7 @@ if __name__ == "__main__":
     for ax in axs[-1, :]:
         ax.set_xticks(np.arange(len(times)))
         ax.set_xticklabels(times)
-    fig.supylabel("gap frequency")
+    fig.supylabel("consensus frequency")
     plt.tight_layout()
     savefig("consensus_min_deltafreq_trajs.pdf")
     show()

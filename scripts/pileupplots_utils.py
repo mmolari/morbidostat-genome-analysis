@@ -119,7 +119,7 @@ def consensus_count(pileup, ref_genome_idxs):
     n_consensus_f = np.choose(ref_genome_idxs, nucl_pileup[0])
     n_consensus_r = np.choose(ref_genome_idxs, nucl_pileup[1])
     n_cons = np.vstack([n_consensus_f, n_consensus_r])
-    n_tot = np.sum(pileup, axis=1)
+    n_tot = np.sum(nucl_pileup, axis=1)
     return n_cons, n_tot
 
 

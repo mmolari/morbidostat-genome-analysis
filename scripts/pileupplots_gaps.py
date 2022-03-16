@@ -75,7 +75,7 @@ if __name__ == "__main__":
         ABBB
         CDDD
         """,
-        figsize=(15, 4),
+        figsize=(15, 7),
     )
 
     ax = axs["A"]
@@ -133,6 +133,7 @@ if __name__ == "__main__":
     for ax in axs[-1, :]:
         ax.set_xticks(np.arange(len(times)))
         ax.set_xticklabels(times)
+    fig.supylabel("gap frequency")
     savefig("gap_max_finalfreq_trajs.pdf")
     show()
 
@@ -152,6 +153,7 @@ if __name__ == "__main__":
     for ax in axs[-1, :]:
         ax.set_xticks(np.arange(len(times)))
         ax.set_xticklabels(times)
+    fig.supylabel("gap frequency")
     savefig("gap_max_deltafreq_trajs.pdf")
     show()
 # %%

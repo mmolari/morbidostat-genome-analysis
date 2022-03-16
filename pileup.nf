@@ -19,25 +19,26 @@ script_dir = file("$baseDir/scripts")
 // string corresponding to the first timepoint
 time_beg_id = params.time_beg as String
 
-// Function to extract vial number and timepoint from the path of the input file
-def extract_vial_timepoint(x, ending) {
-    m = x =~ /\/vial_(\d+)\/time_([^\/\s]+)\/${ending}$/
-    return [vial: m[0][1], timepoint: m[0][2], file: x]
-}
-
 // reads input channel. Has items [n. vial, timepoint, file]
+regex1 = /\/vial_(\d+)\/time_([^\/\s]+)\/reads\.fastq\.gz$/
 reads_in = Channel.fromPath("${input_dir}/vial_*/time_*/reads.fastq.gz")
-    .map { extract_vial_timepoint(it, "reads.fastq.gz") }
+    // .map { extract_vial_timepoint(it) }
+    .map {it -> [vial: (it =~ regex1)[0][1],
+                timepoint: (it =~ regex1)[0][2],
+                file: it]}
+
 
 // assembled genome input channel. Has items [n. vial, timepoint, file]
 // filtered so that only the first timepoint is kept
+regex2 = /\/vial_(\d+)\/time_([^\/\s]+)\/assembled_genome\/assembly\.fna$/
 genome_in = Channel.fromPath("${input_dir}/vial_*/time_*/assembled_genome/assembly.fna")
-    .map { extract_vial_timepoint(it, "assembled_genome/assembly.fna")}
-    .filter { it.timepoint == time_beg_id} 
+    .map {it -> [vial: (it =~ regex2)[0][1],
+                timepoint: (it =~ regex2)[0][2],
+                file: it]}
 
 
 //  combine each set of reads with the input genome from the first timepoint
-genome_in.cross(reads_in)
+genome_in.cross(reads_in) { it -> it.vial }
     .map {
         // returns: [vial n., timepoint, reference genome, reads]
         it -> [it[0].vial, it[1].timepoint, it[0].file, it[1].file]

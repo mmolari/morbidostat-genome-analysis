@@ -1,3 +1,4 @@
+from turtle import pos
 import numpy as np
 import pathlib as pth
 import matplotlib as mpl
@@ -94,12 +95,32 @@ def consensus_frequency(pileup, ref_genome_idxs, count_threshold=5):
     n_consensus = np.choose(ref_genome_idxs, tot_pileup)
     consensus_freq = np.zeros_like(n_consensus, dtype=float)
     position_tot = tot_pileup.sum(axis=0)
-    mask = position_tot > 0
-    consensus_freq[mask] = n_consensus[mask] / position_tot[mask]
-    consensus_freq[~mask] = np.nan
-    # set reads with less counts than the threshold to NaN
-    consensus_freq[position_tot < count_threshold] = np.nan
+    consensus_freq = safe_division(n_consensus, position_tot, count_threshold)
     return consensus_freq
+
+
+def consensus_frequency_from_counts(n_cons, n_tot):
+    """Returns the consensus frequencies (n. times a nucleotide different from
+    the one on the genome is observed) given the number of consensus and total
+    counts, in the form of [fwd/rev, pos] matrices."""
+    nc = n_cons.sum(axis=0)
+    nt = n_tot.sum(axis=0)
+    freq = np.zeros_like(nc, dtype=float) * np.nan
+    freq = np.divide(nc, nt, where=nt > 0, out=freq)
+    return freq
+
+
+def consensus_count(pileup, ref_genome_idxs):
+    """Returns the number of consensus nucleotides (n. times a nucleotide is
+    the one on the reference genome) and the total number of nucleotides. Gaps are discarded"""
+    nucl_pileup = pileup[:, :4, :]  # keep only nucleotides, no N or gap
+    assert np.all(ref_genome_idxs < 4), "reference sequence includes gaps or Ns"
+    # evaluate number of consensus
+    n_consensus_f = np.choose(ref_genome_idxs, nucl_pileup[0])
+    n_consensus_r = np.choose(ref_genome_idxs, nucl_pileup[1])
+    n_cons = np.vstack([n_consensus_f, n_consensus_r])
+    n_tot = np.sum(pileup, axis=1)
+    return n_cons, n_tot
 
 
 def gap_count(pileup):

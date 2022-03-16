@@ -92,7 +92,7 @@ if __name__ == "__main__":
         x = np.arange(len(freq))
         ax.plot(x[top_idx], freq[top_idx], ".", color=colors[k])
     ax.set_xlabel("genome position (bp)")
-    ax.set_xlabel("gap frequency")
+    ax.set_ylabel("gap frequency")
 
     ax.set_xlim(0, x.max())
 
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     ax.plot(x[topdf_idx], delta_freq[topdf_idx], "k.")
     ax.set_xlim(0, x.max())
     ax.set_xlabel("genome position (bp)")
-    ax.set_xlabel("delta gap frequency (tf - ti)")
+    ax.set_ylabel("delta gap frequency (tf - ti)")
 
     plt.tight_layout()
     savefig("gap_freq_vs_position.pdf")

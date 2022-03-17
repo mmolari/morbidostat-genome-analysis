@@ -137,10 +137,7 @@ def gap_frequency(ngaps, nnucl):
     The gap frequency."""
     ng = ngaps.sum(axis=0)
     nn = nnucl.sum(axis=0)
-    nt = ng + nn
-    freq = np.zeros_like(ng, dtype=float) * np.nan
-    freq = np.divide(ng, nt, where=nt > 0, out=freq)
-    return freq
+    return safe_division(ng, nn + ng)
 
 
 def find_top_N(arr, N):

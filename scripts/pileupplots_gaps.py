@@ -11,10 +11,6 @@ except:
 
 # %%
 
-# path for a single vial
-# input_data_path = "../results/2022-02-08_RT_test/vial_02/"
-
-
 if __name__ == "__main__":
 
     parser = argparser()
@@ -28,6 +24,10 @@ if __name__ == "__main__":
     savefig = savefig_function(fig_path)
 
     # %%
+
+    # data_path = pth.Path("../results/2022-02-08_RT_test/vial_04/")
+    # savefig = lambda x: None
+    # show = lambda: plt.show()
 
     # get vial number
     vial = re.search("vial_(\d+)/?$", str(data_path)).groups()[0]

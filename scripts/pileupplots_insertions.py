@@ -137,7 +137,7 @@ if __name__ == "__main__":
     axs[-1].set_xlabel("genome position [bp]")
     fig.supylabel("insertion density (n. insertions per bp)")
     plt.tight_layout()
-    plt.subplots_adjust(hspace=0.12, left=0.05)
+    plt.subplots_adjust(hspace=0.12, left=0.07)
     savefig("insertion_density_1.pdf")
     show()
 
@@ -186,6 +186,6 @@ if __name__ == "__main__":
         verticalalignment="center",
     )
     plt.tight_layout()
-    plt.subplots_adjust(hspace=0.12, left=0.05, right=0.95)
+    plt.subplots_adjust(hspace=0.12, left=0.07, right=0.93)
     savefig("insertion_density_2.pdf")
     show()

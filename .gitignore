@@ -1,8 +1,10 @@
 test_dataset
 .vscode
-mytest
+local
 work
 .nextflow*
 reports
 results
 makefile
+figures
+__pycache__/

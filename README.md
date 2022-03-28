@@ -45,3 +45,37 @@ results are saved in the `results` folder, with a structure that mirrors the `vi
 - `pileup/allele_counts.npz` : pileup of the reads. This is a numpy tensor with dimension (2,6,L) corresponding to (1) forward-reverse reads, (2) allele `["A", "C", "G", "T", "-", "N"]` and (3) position.
 - `pileup/insertions.pkl.gz` : a nested dictionary of insertions, saved in pickle format and compressed with gzip. The structure is `position -> sequence -> [n. forward reads, n. reverse reads]`.
 - `ref_genome.fa` and `ref_genome.gbk` : symlink to the reference genome used for mapping the reads (same vial, first timepoint), both in genbank and fasta format. 
+
+
+## workflow: summary plots with pileup analysis
+
+The workflow `pileup_plots.nf` executes scripts to analyze the results of the pileup. The workflow can be launched with:
+
+```bash
+nextflow run pileup_plots.nf \
+    -profile cluster \
+    --input_fld results/test_dataset \
+    -resume
+```
+
+The `--input_fld` flag is used to specify the folder in which the results of the previous workflow are saved.
+The output figures are saved in `figures/subfolder` where the subfolder has the name of the run, and they are separated by vial.
+The executed scripts are:
+- `pileupplots_coverage.py`
+- `pileupplots_consensus_frequency.py`
+- `pileupplots_gaps.py`
+- `pileupplots_insertions.py`
+
+For each of these scripts, usage is:
+
+```bash
+python3 scripts/pileupplots_consensus_frequency.py \
+    --vial_fld results/2022-02-08_RT_test/vial_02 \
+    --fig_fld     figs/2022-02-08_RT_test/vial_02 \
+    --show
+```
+
+Where:
+- `--vial_fld` is the folder containing the results for a single vial (pileup, reference genome...)
+- `--fig_fld` is the output folder in which to save figures (must exist)
+- `--show` if specified figures are visualized with `plt.show()`, and otherwise they are simply saved.

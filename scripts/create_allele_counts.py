@@ -29,8 +29,8 @@ def sam_to_allele_counts(
         return np.zeros((2, 6, length), dtype=int)
 
     # Note: the data structure for inserts is a nested dict with:
-    # position --> string --> read type --> count
-    #  (dict)      (dict)       (list)      (int)
+    # position --> string  -->         count
+    #  (dict)      (dict)      (count fwd / count rev)
     def insertion_data_structure():
         return defaultdict(lambda: defaultdict(lambda: np.zeros(2, int)))
 

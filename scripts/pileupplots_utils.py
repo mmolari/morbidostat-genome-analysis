@@ -3,6 +3,8 @@ import numpy as np
 import pathlib as pth
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import pickle as pkl
+import gzip
 import re
 import argparse
 
@@ -65,6 +67,24 @@ def load_reference_genome(data_path):
     with open(fasta_file, "r") as f:
         ref_genome = SeqIO.read(f, format="fasta")
     return ref_genome
+
+
+def load_insertions(data_path):
+    """Given the path to the vial_X folder of interest, this function
+    loads all the corresponding insertions dictionaries. Returns them
+    in a nested dictionary whose keys are timepoint labels."""
+    # list of "time_*" folders
+    timepoint_fld = sorted(list(data_path.glob("time_*")))
+    # define regex to extract timepoint label
+    m = re.compile("/time_(.+)$")
+    # build and return dictionary of pileup matrices
+    insertions = {}
+    for tpf in timepoint_fld:
+        time_id = m.search(str(tpf)).groups()[0]
+        tp_file = tpf / "pileup" / "insertions.pkl.gz"
+        with gzip.open(tp_file, "r") as f:
+            insertions[time_id] = pkl.load(f)
+    return insertions
 
 
 def coverage(pileup):
@@ -231,3 +251,58 @@ def plot_stepwise_average(arr, step, ax, **kwargs):
     """plot the stepwise average of an array"""
     x, avg = average_every_step(arr, step)
     ax.plot(x, avg, **kwargs)
+
+
+# Processing Insertions
+
+
+def insertion_len(ins):
+    """Given an insertion dictionary {position -> {sequence -> [fwd, rev]}}
+    It returns the count of insertions for different lengths, in the form of
+    a dictionary {length -> n. insertions}"""
+    Ls = defaultdict(int)
+    for pos, I in ins.items():
+        for seq, N in I.items():
+            Ls[len(seq)] += np.sum(N)
+    return Ls
+
+
+def insertion_density(insertions, step, L):
+    """Given an insertion dictionary {position -> {seq -> [n. fwd, n.rev]}},
+    a step size, and a total genome length, it returns two arrays of insertion densities.
+    These arrays have a size L / step, and each contains the density of insertions in an
+    interval of length `step` basepairs.
+    The first array contains the density of insertions measured as number of insertions per position.
+    The second one as number of nucleotides inserted per position, and also includes
+    information on insertion length. These arrays are matrices with a number of rows
+    equal to L / step, and two columns. The latter correspond to forward and reverse reads."""
+    n_bins = int(np.ceil(L / step))
+    bp_density, n_density = [np.zeros((n_bins, 2), dtype=float) for _ in range(2)]
+    for pos, I in insertions.items():
+        idx = pos // step
+        for seq, n_ins in I.items():
+            n_density[idx, :] += n_ins
+            bp_density[idx, :] += len(seq) * n_ins
+
+    bp_density /= step
+    n_density /= step
+
+    L_last_chunk = L % step
+    bp_density[-1, :] *= step / L_last_chunk
+    n_density[-1, :] *= step / L_last_chunk
+
+    return n_density, bp_density
+
+
+def pick_insertion_threshold_length(ins_Ls, n_selected):
+    """Select a threshold length that includes the top `n_selected` longest insertions"""
+    tf = sorted(ins_Ls.keys())[-1]
+    Lf = ins_Ls[tf]
+    ins_lengths_list = sorted(Lf.keys())[::-1]
+    tot = 0
+    for l in ins_lengths_list:
+        threshold = l
+        tot += Lf[l]
+        if tot >= n_selected:
+            break
+    return threshold

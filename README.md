@@ -57,12 +57,14 @@ nextflow run pileup_plots.nf \
     --input_fld results/test_dataset \
     -resume
 ```
+
 The `--input_fld` flag is used to specify the folder in which the results of the previous workflow are saved.
 The output figures are saved in `figures/subfolder` where the subfolder has the name of the run, and they are separated by vial.
 The executed scripts are:
 - `pileupplots_coverage.py`
 - `pileupplots_consensus_frequency.py`
 - `pileupplots_gaps.py`
+- `pileupplots_insertions.py`
 
 For each of these scripts, usage is:
 

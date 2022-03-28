@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     # get vial number
     vial = re.search("vial_(\d+)/?$", str(data_path)).groups()[0]
-    print(f"preparing frequency plots for vial {vial}")
+    print(f"preparing gap plots for vial {vial}")
 
     # load pileups and reference genome
     pileups = load_pileups(data_path)

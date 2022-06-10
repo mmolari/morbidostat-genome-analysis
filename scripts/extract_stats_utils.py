@@ -177,7 +177,7 @@ class StatsTable:
         """
         Saves the StatsTable as a pandas dataframe in the form of a gzipped picke file.
         """
-        filename = pth.Path(fld) / f"stat_table_{self.stat}.pkl.gz"
+        filename = pth.Path(fld) / f"stats_table_{self.stat}.pkl.gz"
         self.df.to_pickle(filename, compression="gzip")
 
     @classmethod

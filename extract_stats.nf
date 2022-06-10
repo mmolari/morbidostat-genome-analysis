@@ -17,10 +17,10 @@ input_ch = Channel.fromPath("${input_dir}/vial_*", type:"dir")
 scripts = ["extract_consensus_freq.py", "extract_gap_freq.py"]
 
 
-process plot_script {
+process extract_script {
     label 'q30m_1core'
 
-    publishDir "figures/${input_dir.getName()}/vial_${vial}/stats/", mode: 'copy'
+    publishDir "results/${input_dir.getName()}/vial_${vial}/stats/", mode: 'copy'
 
     input:
         tuple val(vial), path(vial_fld) from input_ch
@@ -31,6 +31,6 @@ process plot_script {
 
     script:
         """
-        python3 $script_dir/$script --vial_fld $vial_fld --output_dir . --verbose
+        python3 $script_dir/$script --vial_fld $vial_fld --output_fld . --verbose
         """
 }

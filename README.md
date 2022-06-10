@@ -54,7 +54,7 @@ The workflow `extract_stats.nf` extracts relevant statistics from the pileups an
 - frequency of reads being equal to the reference genome
 - frequency of gaps
 
-These are saved as `stats/stat_table_{statname}.pkl.gz` files containing pandas dataframes.
+These are saved as `stats/stats_table_{statname}.pkl.gz` files containing pandas dataframes.
 
 The workflow can be run by executing:
 

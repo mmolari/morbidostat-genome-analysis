@@ -1,7 +1,4 @@
-from turtle import pos
 import numpy as np
-import pathlib as pth
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pickle as pkl
 import gzip

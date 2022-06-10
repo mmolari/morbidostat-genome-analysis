@@ -47,12 +47,32 @@ results are saved in the `results` folder, with a structure that mirrors the `vi
 - `ref_genome.fa` and `ref_genome.gbk` : symlink to the reference genome used for mapping the reads (same vial, first timepoint), both in genbank and fasta format. 
 
 
+## workflow: extract statistics
+
+The workflow `extract_stats.nf` extracts relevant statistics from the pileups and insertion lists. These include:
+
+- frequency of reads being equal to the reference genome
+- frequency of gaps
+
+These are saved as `stats/stat_table_{statname}.pkl.gz` files containing pandas dataframes.
+
+The workflow can be run by executing:
+
+```
+nextflow run extract_stats.nf \
+    -profile cluster \
+    --input_fld results/test_dataset \
+    -resume
+```
+
+where `--input_fld` is the subfolder of `results` corresponding to the dataset of interest, containing the pileups for different vials and different timepoints.
+
 ## workflow: summary plots with pileup analysis
 
-The workflow `pileup_plots.nf` executes scripts to analyze the results of the pileup. The workflow can be launched with:
+The workflow `plots.nf` executes scripts to analyze the results of the pileup. The workflow can be launched with:
 
 ```bash
-nextflow run pileup_plots.nf \
+nextflow run plots.nf \
     -profile cluster \
     --input_fld results/test_dataset \
     -resume

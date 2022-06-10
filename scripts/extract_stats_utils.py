@@ -127,18 +127,20 @@ def create_statsdf(Ntrue, Ntot):
         )
         for k in ["fwd", "rev", "tot"]
     ]
+
+    # frequencies
     for t in times:
         ntrue, ntot = Ntrue[t], Ntot[t]
-
-        # Ntot
-        df_f[f"N_{t}"] = ntot[0, :]
-        df_r[f"N_{t}"] = ntot[1, :]
-        df_t[f"N_{t}"] = ntot.sum(axis=0)
-
-        # frequency
         df_f[f"freq_{t}"] = safe_division(ntrue[0, :], ntot[0, :])
         df_r[f"freq_{t}"] = safe_division(ntrue[1, :], ntot[1, :])
         df_t[f"freq_{t}"] = safe_division(ntrue.sum(axis=0), ntot.sum(axis=0))
+
+    # Ns
+    for t in times:
+        ntot = Ntot[t]
+        df_f[f"N_{t}"] = ntot[0, :]
+        df_r[f"N_{t}"] = ntot[1, :]
+        df_t[f"N_{t}"] = ntot.sum(axis=0)
 
     # concatenate and return
     df = pd.concat([df_t, df_f, df_r], ignore_index=True)

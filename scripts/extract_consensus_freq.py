@@ -26,15 +26,16 @@ if __name__ == "__main__":
     input_fld = pth.Path(args.vial_fld)
     output_fld = pth.Path(args.output_fld)
     output_fld.mkdir(exist_ok=True)
-    verbose = args.verbose
-    # %%
 
-    if verbose:
+    if args.verbose:
         vprint = print
     else:
         vprint = lambda x: None
 
+    # %%
     # input_fld = pth.Path("../results/2022-02-08_RT_test/vial_04/")
+    # vprint = print
+
     vprint(f"extracting reference frequency for {input_fld}")
 
     # load pileups and reference genome

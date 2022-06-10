@@ -5,9 +5,10 @@ import matplotlib.pyplot as plt
 import re
 
 try:
-    from pileupplots_utils import *
+    from plot_utils import *
 except:
-    from .pileupplots_utils import *
+    from .plot_utils import *
+
 
 # %%
 
@@ -31,43 +32,48 @@ if __name__ == "__main__":
 
     # get vial number
     vial = re.search("vial_(\d+)/?$", str(data_path)).groups()[0]
-    print(f"preparing gap plots for vial {vial}")
+    print(f"preparing frequency plots for vial {vial}")
 
     # load pileups and reference genome
     pileups = load_pileups(data_path)
+    ref_genome = load_reference_genome(data_path)
 
-    # get gap counts
-    ngaps, nnucl, ntot = {}, {}, {}
+    # evaluate number of times a nucleotide is consensus and total number of nucleotides:
+    ref_genome_idxs = ref_genome_to_nucl_id(ref_genome)
+    ncons, ntot = {}, {}
     for k, pp in pileups.items():
-        ngaps[k], nnucl[k] = gap_count(pp)
-        ntot[k] = ngaps[k] + nnucl[k]
+        ncons[k], ntot[k] = consensus_count(pp, ref_genome_idxs)
 
-    # evaluate frequency of gaps
-    gap_freq = {k: gap_frequency(ngaps[k], nnucl[k]) for k in ngaps}
+    # evaluate consensus frequencies
+    cons_freqs = {k: consensus_frequency_from_counts(ncons[k], ntot[k]) for k in ncons}
 
-    # evaluate delta frequencies
-    times = sorted(list(gap_freq.keys()))
+    # delta consensus frequency
+    times = sorted(list(cons_freqs.keys()))
     ti, tf = times[0], times[-1]
-    delta_freq = gap_freq[tf] - gap_freq[ti]
+    delta_freq = cons_freqs[tf] - cons_freqs[ti]
 
+    # %%
     # number of positions to keep
     N_keep = 50
 
     # find positions with highest gap final frequency
-    top_idx, top_vals = find_top_N(gap_freq[tf], N_keep)
-    freq_thr = top_vals[0]
+    top_idx, top_vals = find_bottom_N(cons_freqs[tf], N_keep)
+    freq_thr = top_vals[-1]
 
     # find positions with highest delta gap frequency
-    topdf_idx, top_dfvals = find_top_N(delta_freq, N_keep)
-    dfreq_thr = top_dfvals[0]
+    topdf_idx, top_dfvals = find_bottom_N(delta_freq, N_keep)
+    dfreq_thr = top_dfvals[-1]
 
     # extract frequency trajectories
-    n_threshold = 5
-    traj_f = extract_trajectories(ngaps, ntot, top_idx, n_threshold)
-    traj_df = extract_trajectories(ngaps, ntot, topdf_idx, n_threshold)
+    n_threshold = 10
+    traj_f = extract_trajectories(ncons, ntot, top_idx, n_threshold)
+    traj_df = extract_trajectories(ncons, ntot, topdf_idx, n_threshold)
 
-    colors = color_dict(gap_freq)
+    # assign colors to timepoints
+    colors = color_dict(pileups)
+
     # %%
+    # plot frequency trajectories
 
     # plot frequency of gaps
     fig, axs = plt.subplot_mosaic(
@@ -80,19 +86,19 @@ if __name__ == "__main__":
 
     ax = axs["A"]
     bins = np.linspace(0, 1, 100)
-    cumulative_histograms(gap_freq, ax, colors, plotmeans=False, bins=bins)
+    cumulative_histograms(cons_freqs, ax, colors, plotmeans=False, bins=bins)
     ax.set_yscale("log")
     ax.axvline(freq_thr, ls="--", color="k")
     ax.legend(loc="upper right")
-    ax.set_xlabel("gap frequency")
+    ax.set_xlabel("consensus frequency")
     ax.set_ylabel("n. sites")
 
     ax = axs["B"]
-    for k, freq in gap_freq.items():
+    for k, freq in cons_freqs.items():
         x = np.arange(len(freq))
         ax.plot(x[top_idx], freq[top_idx], ".", color=colors[k])
     ax.set_xlabel("genome position (bp)")
-    ax.set_ylabel("gap frequency")
+    ax.set_ylabel("consensus frequency")
 
     ax.set_xlim(0, x.max())
 
@@ -101,7 +107,7 @@ if __name__ == "__main__":
     ax.hist(delta_freq, bins=bins, histtype="step", color="k")
     ax.set_yscale("log")
     ax.axvline(dfreq_thr, ls="--", color="gray")
-    ax.set_xlabel("delta gap frequency (final time - initial time)")
+    ax.set_xlabel("delta consensus frequency (final time - initial time)")
     ax.set_ylabel("n. sites")
 
     ax = axs["D"]
@@ -109,10 +115,10 @@ if __name__ == "__main__":
     ax.plot(x[topdf_idx], delta_freq[topdf_idx], "k.")
     ax.set_xlim(0, x.max())
     ax.set_xlabel("genome position (bp)")
-    ax.set_ylabel("delta gap frequency (tf - ti)")
+    ax.set_ylabel("delta consensus frequency (tf - ti)")
 
     plt.tight_layout()
-    savefig("gap_freq_vs_position.pdf")
+    savefig("consensus_freq_vs_position.pdf")
     show()
     # %%
 
@@ -133,9 +139,9 @@ if __name__ == "__main__":
     for ax in axs[-1, :]:
         ax.set_xticks(np.arange(len(times)))
         ax.set_xticklabels(times)
-    fig.supylabel("gap frequency")
+    fig.supylabel("consensus frequency")
     plt.tight_layout()
-    savefig("gap_max_finalfreq_trajs.pdf")
+    savefig("consensus_min_finalfreq_trajs.pdf")
     show()
 
     # %%
@@ -154,8 +160,8 @@ if __name__ == "__main__":
     for ax in axs[-1, :]:
         ax.set_xticks(np.arange(len(times)))
         ax.set_xticklabels(times)
-    fig.supylabel("gap frequency")
+    fig.supylabel("consensus frequency")
     plt.tight_layout()
-    savefig("gap_max_deltafreq_trajs.pdf")
+    savefig("consensus_min_deltafreq_trajs.pdf")
     show()
 # %%

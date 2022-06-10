@@ -8,9 +8,9 @@ from matplotlib.ticker import MultipleLocator
 
 
 try:
-    from pileupplots_utils import *
+    from plot_utils import *
 except:
-    from .pileupplots_utils import *
+    from .plot_utils import *
 
 
 # %%

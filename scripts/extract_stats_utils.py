@@ -83,6 +83,15 @@ def consensus_count(pileup, ref_genome):
     return n_cons, n_tot
 
 
+def gap_count(pileup):
+    """Given a pileup returns two matrices, one for the number of gaps and
+    one for the number of total reads. The first index of the matrix refers to
+    forward or backward reads."""
+    ngaps = pileup[:, 4, :]
+    ntot = pileup.sum(axis=1)
+    return ngaps, ntot
+
+
 def safe_division(a, b, threshold=0):
     """Safe division between two arrays, returning nan if the value of the divisor
     is below threshold"""

@@ -1,3 +1,4 @@
+from click import password_option
 import numpy as np
 import re
 import argparse
@@ -101,6 +102,10 @@ def safe_division(a, b, threshold=0):
     return res
 
 
+# direction kinds
+DirKinds = ["tot", "fwd", "rev"]
+
+
 def create_statsdf(Ntrue, Ntot):
     """
     Utility function to create a stats dataframe from dictionaries with the number of events.
@@ -113,7 +118,7 @@ def create_statsdf(Ntrue, Ntot):
     assert set(Ntrue.keys()) == set(
         Ntot.keys()
     ), "the two dictionaries must have the same set of keys."
-    kind_dtype = pd.CategoricalDtype(["tot", "fwd", "rev"], ordered=True)
+    kind_dtype = pd.CategoricalDtype(DirKinds, ordered=True)
     order = np.argsort([int(t) for t in Ntrue.keys()])
     times = np.array(list(Ntrue.keys()))[order]
     P = Ntot[times[0]].shape[1]
@@ -174,20 +179,59 @@ class StatsTable:
         return cls(stat=stat, times=times, df=df)
 
     def save(self, fld):
-        """
-        Saves the StatsTable as a pandas dataframe in the form of a gzipped picke file.
-        """
+        """Saves the StatsTable as a pandas dataframe in the form of a gzipped picke file."""
         filename = pth.Path(fld) / f"stats_table_{self.stat}.pkl.gz"
         self.df.to_pickle(filename, compression="gzip")
 
     @classmethod
     def load(cls, filename):
-        """
-        Loads a StatsTable from a gzipped pickle file.
-        """
+        """Loads a StatsTable from a gzipped pickle file."""
         df = pd.read_pickle(filename, compression="gzip")
-        stat = re.search(str(filename), r"stat_table_([^/]*).pkl.gz$").groups()[0]
+        stat = re.search(r"stats_table_([^/]*)\.pkl\.gz$", str(filename)).groups()[0]
         times = np.sort(
-            [int(re.search(c, r"time_(\d+)$").groups()[0]) for c in list(df.columns)]
+            [
+                int(re.search(r"freq_(\d+)$", c).groups()[0])
+                for c in list(df.columns)
+                if c.startswith("freq_")
+            ]
         )
         return cls(stat=stat, times=times, df=df)
+
+    def __sanity_check(self, t=None, kind=None):
+        if t is not None:
+            assert t in self.times, f"t={t} unrecognized, must be one of {self.times}"
+        if kind is not None:
+            assert kind in DirKinds, f"kind={kind}, must be in [tot,fwd,rev]"
+
+    def __recover_value(self, t, kind, pre_label):
+        self.__sanity_check(t=t, kind=kind)
+        mask = self.df["type"] == kind
+        return self.df[f"{pre_label}_{t}"][mask].to_numpy()
+
+    def N(self, t, kind):
+        """
+        Returns the array of number of observations of type `kind` (tot, fwd, rev)
+        at timepoint `t`.
+        """
+        return self.__recover_value(t, kind, pre_label="N")
+
+    def freq(self, t, kind):
+        """
+        Returns the array of frequencies of type `kind` (tot, fwd, rev)
+        at timepoint `t`.
+        """
+        return self.__recover_value(t, kind, pre_label="freq")
+
+    def traj(self, pos):
+        """For a given position, returns two dictionaries. The first contains frequency
+        trajectories, and the second number of observations. Keys are [tot, fwd, rev] and
+        items are vectors."""
+        mask = self.df["position"] == pos
+        df = self.df[mask]
+        trajs = {}
+        Ns = {}
+        for kind in DirKinds:
+            sdf = df[df["type"] == kind].iloc[0].to_dict()
+            trajs[kind] = [sdf[f"freq_{t}"] for t in self.times]
+            Ns[kind] = [sdf[f"N_{t}"] for t in self.times]
+        return trajs, Ns

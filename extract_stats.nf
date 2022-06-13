@@ -18,7 +18,7 @@ scripts = ["extract_consensus_freq.py", "extract_gap_freq.py"]
 
 
 process extract_script {
-    label 'q30m_1core'
+    label 'q6h_1core'
 
     publishDir "results/${input_dir.getName()}/vial_${vial}/stats/", mode: 'copy'
 

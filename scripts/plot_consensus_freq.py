@@ -77,7 +77,7 @@ if __name__ == "__main__":
     bins = np.linspace(0, 1, 100)
     dict_histograms(cons_freqs, ax, colors, bins=bins)
     ax.set_yscale("log")
-    ax.legend(loc="upper right")
+    ax.legend(loc="upper left")
     ax.set_xlabel("consensus frequency")
     ax.set_ylabel("n. sites")
 
@@ -143,3 +143,5 @@ if __name__ == "__main__":
 # - plot trajectories
 # - pvalue plots with thresholds
 # - document plots
+# - more agressive filtering of pvalues (product? Both more than 50%?)
+# - scatter plot pvalue and delta frequency

@@ -7,6 +7,8 @@ import argparse
 
 from collections import defaultdict
 from Bio import SeqIO
+from scipy.stats import binomtest
+
 
 from extract_stats_utils import StatsTable
 
@@ -28,16 +30,6 @@ def argparser():
     return parser
 
 
-def savefig_function(path):
-    """returns a function that saves the figure in the right path with
-    the given name"""
-
-    def savefunc(name):
-        plt.savefig(path / name)
-
-    return savefunc
-
-
 # ~~~~~~~~~~~~~~~~ PROCESSING UTILS ~~~~~~~~~~~~~~~~
 
 
@@ -51,10 +43,42 @@ def average_every_step(arr, step):
     return x, avg
 
 
-def top_N_position(ranking, inverse=False):
-    # given a ranking returns the top (or bottom) N indices of the ranking
-    # exclude nan
-    pass
+def binomial_pvals(freqs, Ns, mus):
+    """Give a set of frequencies, number of observations and means, it evaluates
+    the p-value for the binomial test of the frequencies relative to the fixed
+    means."""
+    Ks = np.rint(freqs * Ns).astype(int)
+    m = np.isnan(freqs)
+    pvals = np.zeros_like(freqs)
+    lut = {}  # lookup table
+    for i in range(len(freqs)):
+        if m[i]:
+            pvals[i] = np.nan
+            continue
+        args = (Ks[i], Ns[i], mus[i])
+        if args in lut:
+            pvals[i] = lut[args]
+        else:
+            pvals[i] = binomtest(*args).pvalue
+            lut[args] = pvals[i]
+    return pvals
+
+
+def select_top_positions(ranking, Nmax, mask=None, inverse=False):
+    """
+    Select top Nmax positions in the ranking, optionally masking out values
+    if `mask` argument is passed.
+    """
+    ranking = -np.array(ranking) if inverse else np.array(ranking)
+    if mask is not None:
+        ranking[~mask] = np.nan
+    pos = np.arange(len(ranking))
+    m = np.isnan(ranking)
+    ranking, pos = ranking[~m], pos[~m]
+    order = np.argsort(ranking)
+    n_take = min(Nmax, len(ranking))
+    idxs = order[-n_take:][::-1]
+    return pos[idxs], ranking[idxs]
 
 
 # ~~~~~~~~~~~~~~~~ PLOT UTILS ~~~~~~~~~~~~~~~~
@@ -68,8 +92,8 @@ def color_dict(timepoints):
     return colors
 
 
-def cumulative_histograms(items_dict, ax, colors, plotmeans, **kwargs):
-    """plot the cumulative histogram of a dictionary of items"""
+def dict_histograms(items_dict, ax, colors, plotmeans=False, **kwargs):
+    """plot the histogram of a dictionary of items"""
     means = {tp: arr.mean() for tp, arr in items_dict.items()}
     for tp, arr in items_dict.items():
         ax.hist(arr, label=tp, histtype="step", color=colors[tp], **kwargs)
@@ -168,22 +192,6 @@ def cumulative_histograms(items_dict, ax, colors, plotmeans, **kwargs):
 #     return safe_division(ng, nn + ng)
 
 
-# def find_top_N(arr, N):
-#     """returns the indexes and values of the top N values in the array"""
-#     order = np.argsort(arr)
-#     take = min(N, len(arr))
-#     idxs = order[-take:]
-#     return idxs, arr[idxs]
-
-
-# def find_bottom_N(arr, N):
-#     """returns the indexes and values of the bottom N values in the array"""
-#     order = np.argsort(arr)
-#     take = min(N, len(arr))
-#     idxs = order[:take]
-#     return idxs, arr[idxs]
-
-
 # def safe_division(a, b, threshold=0):
 #     """Safe division between two arrays, returning nan if the value of the divisor
 #     is below threshold"""
@@ -218,14 +226,6 @@ def cumulative_histograms(items_dict, ax, colors, plotmeans, **kwargs):
 #     tr["freq_r"] = safe_division(nr, Nr, threshold)
 #     tr["freq_t"] = safe_division(nf + nr, Nf + Nr, threshold)
 #     return tr
-
-
-# def plot_trajectory(ax, traj):
-#     """Utility to plot a single frequency trajectory"""
-#     x = np.arange(len(traj["freq_t"]))
-#     ax.plot(x, traj["freq_f"], "x-")
-#     ax.plot(x, traj["freq_r"], "x-")
-#     ax.plot(x, traj["freq_t"], "ko-")
 
 
 # def plot_stepwise_average(arr, step, ax, **kwargs):

@@ -25,7 +25,7 @@ if __name__ == "__main__":
     # override print, show, save functions
     vprint = print if args.verbose else lambda x: None
     show = plt.show if args.show else plt.close
-    savefig = savefig_function(fig_path)
+    savefig = lambda name: plt.savefig(fig_path / name)
 
     # %%
 
@@ -52,6 +52,7 @@ if __name__ == "__main__":
     # left part: cumulative histogram of coverage per site
     # Right part: average coverage over the sequence
 
+    vprint("plotting coverage distribution")
     # figure setup
     fig, axs = plt.subplot_mosaic("ABBBB", figsize=(25, 4))
 
@@ -59,9 +60,7 @@ if __name__ == "__main__":
     ax = axs["A"]
     maxcov = max([max(cov) for cov in coverages.values()]) + 2
     bins = np.arange(maxcov)
-    cumulative_histograms(
-        coverages, ax, colors, plotmeans=True, bins=bins, cumulative=True
-    )
+    dict_histograms(coverages, ax, colors, plotmeans=True, bins=bins, cumulative=True)
     ax.set_xlim(right=maxcov - 1)
     ax.legend(loc="lower right", title="time")
     ax.set_xlabel("coverage per site")
@@ -106,6 +105,8 @@ if __name__ == "__main__":
     # %%
     # COVERAGE PLOT 2)
     # forward and reverse coverage boxplot for different timepoints
+
+    vprint("plotting forward/reverse coverage boxplot")
 
     # create dataframe with forward and reverse coverage
     dfs = []

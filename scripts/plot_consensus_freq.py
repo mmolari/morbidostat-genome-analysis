@@ -262,7 +262,7 @@ if __name__ == "__main__":
     # frequency trajectories
     fig, axs = plot_4_trajectories(st, S_pos, S_rank)
     plt.tight_layout()
-    savefig("consensus_min_finalfreq_trajs.pdf")
+    savefig("consensus_freq_trajs.pdf")
     show()
 
     # %%

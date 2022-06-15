@@ -1,6 +1,7 @@
 # %%
 import numpy as np
 import pathlib as pth
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import re
 
@@ -8,6 +9,83 @@ try:
     from plot_utils import *
 except:
     from .plot_utils import *
+
+
+# %%
+
+
+def plot_2_pval_2dhist(pval_f, pval_r, p_thr):
+    """
+    Plot the joint distribution of binomial p-values for the forward and
+    reverse reads, together with the marginal distributions. The red line
+    represents the acceptance threshold below which positions are discarded.
+    """
+
+    fig, axs = plt.subplot_mosaic(
+        """
+        B.
+        AC
+        """,
+        figsize=(8, 8),
+        gridspec_kw={
+            "height_ratios": [0.4, 1.0],
+            "width_ratios": [1.0, 0.4],
+        },
+    )
+
+    bins = np.linspace(0, 1, 50)
+    norm = mpl.colors.LogNorm(vmin=0.1)
+
+    ax = axs["A"]
+    ax.hist2d(pval_f, pval_r, bins=bins, norm=norm, cmap="Blues")
+    x = np.linspace(p_thr, 1, 50)
+    y = p_thr / x
+    ax.plot(x, y, color="red")
+    ax.set_xlabel("p-value forward")
+    ax.set_ylabel("p-value reverse")
+
+    ax = axs["B"]
+    ax.hist(pval_f, bins=bins)
+    ax.set_yscale("log")
+    ax.set_xlim(0, 1)
+    ax.set_ylabel("n. sites")
+
+    ax = axs["C"]
+    ax.hist(pval_r, bins=bins, orientation="horizontal")
+    ax.set_xscale("log")
+    ax.set_ylim(0, 1)
+    ax.set_xlabel("n. sites")
+
+    return fig, ax
+
+
+def plot_3_pval_deltafreq(pval_tot, rank, Ne, N_thr, p_thr):
+    """2D histogram of the delta-frequency vs the total p-value, separated in positions
+    with more or less than `N_thr` counts."""
+
+    mask = Ne["tot"] >= N_thr
+
+    bins = [np.linspace(-1, 1, 50), np.linspace(0, 1, 25)]
+    norm = mpl.colors.LogNorm(vmin=0.1)
+    fig, axs = plt.subplots(1, 2, figsize=(10, 4))
+    for i, m in enumerate([mask, ~mask]):
+        ax = axs[i]
+        s = ax.hist2d(
+            rank[m],
+            pval_tot[m],
+            bins=bins,
+            norm=norm,
+            cmap="Blues",
+        )
+        ax.axhline(p_thr, c="gray", ls="--")
+        ax.set_xlabel("gap frequency difference (final-initial)")
+        ax.set_ylabel("p-value product (p-fwd*p-rev)")
+        plt.colorbar(s[3], ax=ax, label="N. sites")
+    axs[0].set_title(f"N $\geq$ {N_thr}")
+    axs[1].set_title(f"N < {N_thr}")
+
+    return fig, axs
+
 
 # %%
 
@@ -19,143 +97,130 @@ if __name__ == "__main__":
     fig_path = pth.Path(args.fig_fld)
     fig_path.mkdir(exist_ok=True)
 
-    # override show and save functions
-    show = show_function(args.show)
-    savefig = savefig_function(fig_path)
+    # override print, show, save functions
+    vprint = print if args.verbose else lambda x: None
+    show = plt.show if args.show else plt.close
+    savefig = lambda name: plt.savefig(fig_path / name)
 
     # %%
 
-    # data_path = pth.Path("../results/2022-02-08_RT_test/vial_04/")
+    # data_path = pth.Path("../results/2022-05-11_RT-Tol-Res/vial_01")
     # savefig = lambda x: None
-    # show = lambda: plt.show()
+    # show = plt.show
+    # vprint = print
+    # fig_path = pth.Path("../figures/2022-05-11_RT-Tol-Res/vial_01")
 
     # get vial number
     vial = re.search("vial_(\d+)/?$", str(data_path)).groups()[0]
-    print(f"preparing gap plots for vial {vial}")
+    vprint(f"preparing frequency plots for vial {vial}")
 
-    # load pileups and reference genome
-    pileups = load_pileups(data_path)
+    # load gap frequencies
+    vprint("load data")
+    st_path = data_path / "stats" / "stats_table_gap_freq.pkl.gz"
+    st = StatsTable.load(st_path)
 
-    # get gap counts
-    ngaps, nnucl, ntot = {}, {}, {}
-    for k, pp in pileups.items():
-        ngaps[k], nnucl[k] = gap_count(pp)
-        ntot[k] = ngaps[k] + nnucl[k]
+    # capture values of frequencies and number of reads per site
+    tb, te = st.times[0], st.times[-1]
+    kinds = ["tot", "fwd", "rev"]
+    Nb, Ne = [{k: st.N(t, kind=k) for k in kinds} for t in [tb, te]]
+    Fb, Fe = [{k: st.freq(t, kind=k) for k in kinds} for t in [tb, te]]
 
-    # evaluate frequency of gaps
-    gap_freq = {k: gap_frequency(ngaps[k], nnucl[k]) for k in ngaps}
-
-    # evaluate delta frequencies
-    times = sorted(list(gap_freq.keys()))
-    ti, tf = times[0], times[-1]
-    delta_freq = gap_freq[tf] - gap_freq[ti]
-
-    # number of positions to keep
-    N_keep = 50
-
-    # find positions with highest gap final frequency
-    top_idx, top_vals = find_top_N(gap_freq[tf], N_keep)
-    freq_thr = top_vals[0]
-
-    # find positions with highest delta gap frequency
-    topdf_idx, top_dfvals = find_top_N(delta_freq, N_keep)
-    dfreq_thr = top_dfvals[0]
-
-    # extract frequency trajectories
-    n_threshold = 5
-    traj_f = extract_trajectories(ngaps, ntot, top_idx, n_threshold)
-    traj_df = extract_trajectories(ngaps, ntot, topdf_idx, n_threshold)
-
-    colors = color_dict(gap_freq)
     # %%
+    # ~~~~~~~~~~~~ PLOT 1 ~~~~~~~~~~~~
+    # Histogram of gap frequencies and consensy frequency differences
+    vprint(f"preparing plot 1: gap frequency distribution")
 
-    # plot frequency of gaps
-    fig, axs = plt.subplot_mosaic(
-        """
-        ABBB
-        CDDD
-        """,
-        figsize=(15, 7),
-    )
+    fig, axs = fig_freqhist(st, delta_freq=Fe["tot"] - Fb["tot"])
 
-    ax = axs["A"]
-    bins = np.linspace(0, 1, 100)
-    cumulative_histograms(gap_freq, ax, colors, plotmeans=False, bins=bins)
-    ax.set_yscale("log")
-    ax.axvline(freq_thr, ls="--", color="k")
-    ax.legend(loc="upper right")
-    ax.set_xlabel("gap frequency")
-    ax.set_ylabel("n. sites")
-
-    ax = axs["B"]
-    for k, freq in gap_freq.items():
-        x = np.arange(len(freq))
-        ax.plot(x[top_idx], freq[top_idx], ".", color=colors[k])
-    ax.set_xlabel("genome position (bp)")
-    ax.set_ylabel("gap frequency")
-
-    ax.set_xlim(0, x.max())
-
-    ax = axs["C"]
-    bins = np.linspace(-1, 1, 200)
-    ax.hist(delta_freq, bins=bins, histtype="step", color="k")
-    ax.set_yscale("log")
-    ax.axvline(dfreq_thr, ls="--", color="gray")
-    ax.set_xlabel("delta gap frequency (final time - initial time)")
-    ax.set_ylabel("n. sites")
-
-    ax = axs["D"]
-    x = np.arange(len(freq))
-    ax.plot(x[topdf_idx], delta_freq[topdf_idx], "k.")
-    ax.set_xlim(0, x.max())
-    ax.set_xlabel("genome position (bp)")
-    ax.set_ylabel("delta gap frequency (tf - ti)")
+    axs[0].set_xlabel("gap frequency")
+    axs[1].set_xlabel("delta gap frequency (final time - initial time)")
 
     plt.tight_layout()
-    savefig("gap_freq_vs_position.pdf")
+    savefig("gap_freq_distributions.pdf")
     show()
+
     # %%
+    # ~~~~~~~~~~~~ FILTER ~~~~~~~~~~~~
+    # rank trajectories by delta-frequency
+    # evaluate binomial p-values to see if forward and reverse gap frequencies
+    # are compatible with the average frequency
+    vprint(f"selecting positions with high delta frequency")
 
-    Nx = 3
-    Ny = int(np.ceil(N_keep / Nx))
+    # binomial
+    pval_f = binomial_pvals(Fe["fwd"], Ne["fwd"], Fe["tot"])
+    pval_r = binomial_pvals(Fe["rev"], Ne["rev"], Fe["tot"])
 
-    fig, axs = plt.subplots(
-        Ny, Nx, figsize=(Nx * 3, Ny * 1.5), sharex=True, sharey=True
+    p_thr = 0.05
+    N_thr = 10
+    pval_tot = pval_f * pval_r
+    rank = Fe["tot"] - Fb["tot"]
+    keep = pval_tot >= p_thr
+    keep &= Ne["tot"] >= N_thr
+    Nkeep = 100
+
+    # select top positions and have their ranking
+    S_pos, S_rank = select_top_positions(
+        ranking=rank, Nmax=Nkeep, mask=keep, inverse=False
     )
 
-    for ntr, pos in enumerate(traj_f):
-        axidx = np.unravel_index(ntr, (Ny, Nx))
-        traj = traj_f[pos]
-        ax = axs[axidx]
-        plot_trajectory(ax, traj)
-        ax.set_title(f"position = {pos}")
+    # %%
+    # ~~~~~~~~~~~~ PLOT 2 ~~~~~~~~~~~~
+    # p-values forward-reverse 2d histogram
+    vprint(f"preparing plot 2: p-value joint distribution")
 
-    for ax in axs[-1, :]:
-        ax.set_xticks(np.arange(len(times)))
-        ax.set_xticklabels(times)
+    fig, axs = plot_2_pval_2dhist(pval_f, pval_r, p_thr)
+    plt.tight_layout()
+    savefig("gap_pvalue_distribution.pdf")
+    show()
+
+    # %%
+
+    # ~~~~~~~~~~~~ PLOT 3 ~~~~~~~~~~~~
+    # p-value vs delta frequency for N above or below threshold
+    vprint(f"preparing plot 3: p-value vs delta frequency distribution")
+
+    fig, axs = plot_3_pval_deltafreq(pval_tot, rank, Ne, N_thr, p_thr)
+    plt.tight_layout()
+    savefig("gap_pvalue_vs_freqdiff.pdf")
+    show()
+
+    # %%
+    # ~~~~~~~~~~~~ PLOT 4 ~~~~~~~~~~~~
+    # frequency trajectories
+    vprint(f"preparing plot 4: frequency trajectories of selected sites")
+
+    fig, axs = fig_trajectories(st, S_pos, S_rank)
     fig.supylabel("gap frequency")
+    fig.supxlabel("timepoint")
     plt.tight_layout()
-    savefig("gap_max_finalfreq_trajs.pdf")
+    savefig("gap_freq_trajs.pdf")
     show()
 
     # %%
+    # ~~~~~~~~~~~~ EXPORT CSV ~~~~~~~~~~~~
+    # export the selected positions as a csv dataframe with frequencies and
+    # number of observations, as well as pvalues and rankings
+    vprint(f"export csv file with selected positions")
 
-    fig, axs = plt.subplots(
-        Ny, Nx, figsize=(Nx * 3, Ny * 1.5), sharex=True, sharey=True
+    # add columns to the dataframe: pvalues and delta frequency
+    pval_dict = {}
+    rank_dict = {}
+    for p, r in zip(S_pos, S_rank):
+        rank_dict[p] = r
+        pval_dict[(p, "fwd")] = pval_f[p]
+        pval_dict[(p, "rev")] = pval_r[p]
+        pval_dict[(p, "tot")] = pval_f[p] * pval_r[p]
+
+    # select relevant positions and add columns
+    mask = st.df["position"].isin(S_pos)
+    sdf = st.df[mask].copy()
+    sdf["pval"] = sdf.apply(lambda x: pval_dict[(x.position, x.type)], axis=1)
+    sdf["rank"] = sdf.apply(lambda x: rank_dict[x.position], axis=1)
+
+    # reorder and save
+    sdf.sort_values(
+        ["rank", "position", "type"], ascending=[False, True, True], inplace=True
     )
+    sdf.to_csv(fig_path / "gap_selected_positions.csv", index=False)
 
-    for ntr, pos in enumerate(traj_df):
-        axidx = np.unravel_index(ntr, (Ny, Nx))
-        traj = traj_df[pos]
-        ax = axs[axidx]
-        plot_trajectory(ax, traj)
-        ax.set_title(f"position = {pos}")
-
-    for ax in axs[-1, :]:
-        ax.set_xticks(np.arange(len(times)))
-        ax.set_xticklabels(times)
-    fig.supylabel("gap frequency")
-    plt.tight_layout()
-    savefig("gap_max_deltafreq_trajs.pdf")
-    show()
 # %%

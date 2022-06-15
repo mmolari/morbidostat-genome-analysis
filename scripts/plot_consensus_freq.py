@@ -14,34 +14,6 @@ except:
 # %%
 
 
-def plot_1_freqhist(st, delta_freq):
-    """
-    Ax 1: distribution of frequencies for each time point
-    Ax 2: distribution of frequency differences between final and initial time
-    """
-    colors = color_dict(st.times)
-
-    cons_freqs = {t: st.freq(t, kind="tot") for t in st.times}
-
-    fig, axs = plt.subplots(1, 2, figsize=(9, 4))
-
-    ax = axs[0]
-    bins = np.linspace(0, 1, 100)
-    dict_histograms(cons_freqs, ax, colors, bins=bins)
-    ax.set_yscale("log")
-    ax.legend(loc="upper left")
-    ax.set_xlabel("consensus frequency")
-    ax.set_ylabel("n. sites")
-
-    ax = axs[1]
-    bins = np.linspace(-1, 1, 200)
-    ax.hist(delta_freq, bins=bins, histtype="step", color="k")
-    ax.set_yscale("log")
-    ax.set_xlabel("delta consensus frequency (final time - initial time)")
-    ax.set_ylabel("n. sites")
-    return fig, ax
-
-
 def plot_2_pval_2dhist(pval_f, pval_r, p_thr):
     """
     Plot the joint distribution of binomial p-values for the forward and
@@ -115,61 +87,6 @@ def plot_3_pval_deltafreq(pval_tot, rank, Ne, N_thr, p_thr):
     return fig, axs
 
 
-def plot_4_trajectories(st, S_pos, S_rank):
-    """
-    For each selected position, plots the frequency trajectory.
-    """
-
-    Nkept = len(S_pos)
-    Nx = 3
-    Ny = int(np.ceil(Nkept / Nx))
-    figsize = (Nx * 3, Ny * 1.5)
-    fig, axs = plt.subplots(Ny, Nx, figsize=figsize, sharex=True, sharey=True)
-
-    # plot one of the three trajectory lines
-    def plot_single_traj(
-        ax, f, n, threshold, color, marker, fillstyle="full", linestyle="-"
-    ):
-        if not linestyle in ["", None]:
-            ax.plot(f, color=color, marker=None, linestyle=linestyle, alpha=0.3)
-        kwargs = {"color": color, "fillstyle": fillstyle, "marker": marker}
-        for i, fi in enumerate(f):
-            if n[i] >= threshold:
-                ax.plot([i], [fi], **kwargs)
-            else:
-                ax.plot([i], [fi], alpha=0.4, **kwargs)
-
-    # single trajectory plot
-    def plot_trajectory(ax, F, N, times, threshold=5):
-        plot_single_traj(ax, F["tot"], N["tot"], threshold, "k", "o", fillstyle="none")
-        plot_single_traj(ax, F["rev"], N["rev"], threshold, "C1", "+", linestyle="")
-        plot_single_traj(ax, F["fwd"], N["fwd"], threshold, "C0", "x", linestyle="")
-
-        ax.set_xticks(range(len(times)))
-        ax.set_xticklabels(times)
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-
-    # plot trajectories
-    for ntr, p in enumerate(S_pos):
-        axidx = np.unravel_index(ntr, (Ny, Nx))
-        F, N = st.traj(p)
-        axidx = axidx[1] if Ny == 1 else axidx
-        ax = axs[axidx]
-        plot_trajectory(ax, F, N, st.times)
-        ax.set_title(f"pos = {p + 1}, $\Delta f$ = {S_rank[ntr]:.2}")
-
-    # remove extra axes
-    for i in range(Nkept, Nx * Ny):
-        axidx = np.unravel_index(i, (Ny, Nx))
-        axidx = axidx[1] if Ny == 1 else axidx
-        axs[axidx].remove()
-
-    fig.supylabel("consensus frequency")
-
-    return fig, axs
-
-
 # %%
 
 if __name__ == "__main__":
@@ -210,8 +127,14 @@ if __name__ == "__main__":
 
     # %%
     # ~~~~~~~~~~~~ PLOT 1 ~~~~~~~~~~~~
-    # Hisstogram of consensus frequencies and consensy frequency differences
-    fig, ax = plot_1_freqhist(st, delta_freq=Fe["tot"] - Fb["tot"])
+    # Histogram of consensus frequencies and consensy frequency differences
+    vprint(f"preparing plot 1: consensus frequency distribution")
+
+    fig, axs = fig_freqhist(st, delta_freq=Fe["tot"] - Fb["tot"])
+
+    axs[0].set_xlabel("consensus frequency")
+    axs[1].set_xlabel("delta consensus frequency (final time - initial time)")
+
     plt.tight_layout()
     savefig("consensus_freq_distributions.pdf")
     show()
@@ -221,6 +144,7 @@ if __name__ == "__main__":
     # rank trajectories by delta-frequency
     # evaluate binomial p-values to see if forward and reverse consensus frequencies
     # are compatible with the average frequency
+    vprint(f"selecting positions with high delta frequency")
 
     # binomial
     pval_f = binomial_pvals(Fe["fwd"], Ne["fwd"], Fe["tot"])
@@ -242,6 +166,7 @@ if __name__ == "__main__":
     # %%
     # ~~~~~~~~~~~~ PLOT 2 ~~~~~~~~~~~~
     # p-values forward-reverse 2d histogram
+    vprint(f"preparing plot 2: p-value joint distribution")
 
     fig, axs = plot_2_pval_2dhist(pval_f, pval_r, p_thr)
     plt.tight_layout()
@@ -252,6 +177,8 @@ if __name__ == "__main__":
 
     # ~~~~~~~~~~~~ PLOT 3 ~~~~~~~~~~~~
     # p-value vs delta frequency for N above or below threshold
+    vprint(f"preparing plot 3: p-value vs delta frequency distribution")
+
     fig, axs = plot_3_pval_deltafreq(pval_tot, rank, Ne, N_thr, p_thr)
     plt.tight_layout()
     savefig("consensus_pvalue_vs_freqdiff.pdf")
@@ -260,7 +187,11 @@ if __name__ == "__main__":
     # %%
     # ~~~~~~~~~~~~ PLOT 4 ~~~~~~~~~~~~
     # frequency trajectories
-    fig, axs = plot_4_trajectories(st, S_pos, S_rank)
+    vprint(f"preparing plot 4: frequency trajectories of selected sites")
+
+    fig, axs = fig_trajectories(st, S_pos, S_rank)
+    fig.supylabel("consensus frequency")
+    fig.supxlabel("timepoint")
     plt.tight_layout()
     savefig("consensus_freq_trajs.pdf")
     show()
@@ -269,6 +200,7 @@ if __name__ == "__main__":
     # ~~~~~~~~~~~~ EXPORT CSV ~~~~~~~~~~~~
     # export the selected positions as a csv dataframe with frequencies and
     # number of observations, as well as pvalues and rankings
+    vprint(f"export csv file with selected positions")
 
     # add columns to the dataframe: pvalues and delta frequency
     pval_dict = {}

@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pickle as pkl
 import gzip
@@ -99,6 +100,111 @@ def dict_histograms(items_dict, ax, colors, plotmeans=False, **kwargs):
         ax.hist(arr, label=tp, histtype="step", color=colors[tp], **kwargs)
         if plotmeans:
             ax.axvline(means[tp], ls=":", color=colors[tp])
+
+
+def plot_traj_markers(ax, f, n, thr, color, marker, fillstyle="full"):
+    """
+    Utility function to plot the markers of a single trajectory, The transparency
+    of the marker depends on whether the number of counts is below threshold.
+    """
+    kwargs = {"color": color, "fillstyle": fillstyle, "marker": marker}
+    for i, fi in enumerate(f):
+        if n[i] >= thr:
+            ax.plot([i], [fi], **kwargs)
+        else:
+            ax.plot([i], [fi], alpha=0.4, **kwargs)
+
+
+def plot_trajectory(ax, F, N, times, thr=5, legend=False):
+    """
+    Given an ax, a dictionary of frequencies and number of observations, plots the
+    evolution of frequencies over time. Black markers and line represent the total
+    frequency, while blue and orange marker represent the forward and reverse
+    frequencies respectively. Markers are transparent if the number of reads is below
+    a threshold.
+    """
+    ax.plot(F["tot"], color="k", marker="o", alpha=0.3)
+    plot_traj_markers(ax, F["tot"], N["tot"], thr, "k", "o", fillstyle="none")
+    plot_traj_markers(ax, F["rev"], N["rev"], thr, "C1", "+")
+    plot_traj_markers(ax, F["fwd"], N["fwd"], thr, "C0", "x")
+
+    if legend:
+        Lin = mpl.lines.Line2D
+        handles = [
+            Lin([0], [0], color="k", marker="o", ls="", label="tot", fillstyle="none"),
+            Lin([0], [0], color="C0", marker="x", ls="", label="fwd"),
+            Lin([0], [0], color="C1", marker="+", ls="", label="rev"),
+        ]
+        ax.legend(handles=handles, prop={"size": 6})
+
+    ax.set_xticks(range(len(times)))
+    ax.set_xticklabels(times)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+
+# ~~~~~~~~~~~~~~~~ MAIN FIGURES ~~~~~~~~~~~~~~~~
+
+
+def fig_freqhist(stats_table, delta_freq):
+    """
+    Creates a figure with two plots. The first one is the distribution of
+    frequencies over different timepoints (extracted from a StatsTable object).
+    The second is the distribution of delta-frequencies. These are the difference
+    between the final and initial frequency. Returns the figure and axes.
+    """
+
+    colors = color_dict(stats_table.times)
+    cons_freqs = {t: stats_table.freq(t, kind="tot") for t in stats_table.times}
+
+    fig, axs = plt.subplots(1, 2, figsize=(9, 4))
+
+    ax = axs[0]
+    bins = np.linspace(0, 1, 100)
+    dict_histograms(cons_freqs, ax, colors, bins=bins)
+    ax.set_yscale("log")
+    ax.legend(loc="best")
+    ax.set_xlabel("frequency")
+    ax.set_ylabel("n. sites")
+
+    ax = axs[1]
+    bins = np.linspace(-1, 1, 200)
+    ax.hist(delta_freq, bins=bins, histtype="step", color="k")
+    ax.set_yscale("log")
+    ax.set_xlabel("delta frequency (final time - initial time)")
+    ax.set_ylabel("n. sites")
+
+    return fig, axs
+
+
+def fig_trajectories(st, pos, rank, threshold=5):
+    """
+    For each selected position, plots the frequency trajectory.
+    """
+
+    Nkept = len(pos)
+    Nx = 3
+    Ny = int(np.ceil(Nkept / Nx))
+    figsize = (Nx * 3, Ny * 1.5)
+    fig, axs = plt.subplots(Ny, Nx, figsize=figsize, sharex=True, sharey=True)
+
+    # plot trajectories
+    leg_pos = min([2, Nkept])
+    for ntr, p in enumerate(pos):
+        axidx = np.unravel_index(ntr, (Ny, Nx))
+        F, N = st.traj(p)
+        axidx = axidx[1] if Ny == 1 else axidx
+        ax = axs[axidx]
+        plot_trajectory(ax, F, N, st.times, thr=threshold, legend=ntr == leg_pos)
+        ax.set_title(f"pos = {p + 1}, $\Delta f$ = {rank[ntr]:.2}")
+
+    # remove extra axes
+    for i in range(Nkept, Nx * Ny):
+        axidx = np.unravel_index(i, (Ny, Nx))
+        axidx = axidx[1] if Ny == 1 else axidx
+        axs[axidx].remove()
+
+    return fig, axs
 
 
 # def load_insertions(data_path):

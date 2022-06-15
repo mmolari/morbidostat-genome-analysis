@@ -112,7 +112,7 @@ if __name__ == "__main__":
 
     # get vial number
     vial = re.search("vial_(\d+)/?$", str(data_path)).groups()[0]
-    vprint(f"preparing frequency plots for vial {vial}")
+    vprint(f"preparing consensus frequency plots for vial {vial}")
 
     # load consensus frequencies
     vprint("load data")

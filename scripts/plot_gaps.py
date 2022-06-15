@@ -112,7 +112,7 @@ if __name__ == "__main__":
 
     # get vial number
     vial = re.search("vial_(\d+)/?$", str(data_path)).groups()[0]
-    vprint(f"preparing frequency plots for vial {vial}")
+    vprint(f"preparing gap frequency plots for vial {vial}")
 
     # load gap frequencies
     vprint("load data")

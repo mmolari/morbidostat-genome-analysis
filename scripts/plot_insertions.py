@@ -4,29 +4,88 @@ import pathlib as pth
 import matplotlib.pyplot as plt
 import re
 
-from matplotlib.ticker import MultipleLocator
-
+import pandas as pd
 
 try:
     from plot_utils import *
+    from extract_stats_utils import safe_division
 except:
     from .plot_utils import *
+    from .extract_stats_utils import safe_division
+
+
+# %%
+
+
+def n_ins(x):
+    return np.vstack(list(x.values())).sum(axis=0)
+
+
+def L_tot(x):
+    return np.vstack([I * len(seq) for seq, I in x.items()]).sum(axis=0)
+
+
+def build_insertion_dataframes(insertions, stats_table):
+
+    Ts = stats_table.times
+
+    dfs = {}
+    for t in Ts:
+
+        ins = insertions[str(t)]
+        pos = np.array(sorted(ins.keys()))
+        df = {}
+
+        # insertions
+        I = np.vstack([n_ins(ins[p]) for p in pos])
+        df["If"], df["Ir"] = I[:, 0], I[:, 1]
+        df["I"] = I.sum(axis=1)
+
+        # number of reads
+        df["Nf"] = stats_table.N(t, kind="fwd")[pos]
+        df["Nr"] = stats_table.N(t, kind="rev")[pos]
+        df["N"] = df["Nf"] + df["Nr"]
+
+        # frequency of insertions
+        df["Ff"] = safe_division(df["If"], df["Nf"])
+        df["Fr"] = safe_division(df["Ir"], df["Nr"])
+        df["F"] = safe_division(df["I"], df["N"])
+
+        # average read length
+        Ltot = np.vstack([L_tot(ins[p]) for p in pos])
+        df["Lf"] = safe_division(Ltot[:, 0], df["If"])
+        df["Lr"] = safe_division(Ltot[:, 1], df["Ir"])
+        df["L"] = Ltot.sum(axis=1) / df["I"]
+
+        # build dataframe
+        dfs[t] = pd.DataFrame(df, index=pos)
+    #     df = pd.concat(columns, axis=1).fillna(0).astype(int)
+
+    return dfs
 
 
 # %%
 
 if __name__ == "__main__":
 
-    # argument parsing
     parser = argparser()
     args = parser.parse_args()
     data_path = pth.Path(args.vial_fld)
     fig_path = pth.Path(args.fig_fld)
     fig_path.mkdir(exist_ok=True)
 
-    # override show and save functions
-    show = show_function(args.show)
-    savefig = savefig_function(fig_path)
+    # override print, show, save functions
+    vprint = print if args.verbose else lambda x: None
+    show = plt.show if args.show else plt.close
+    savefig = lambda name: plt.savefig(fig_path / name)
+
+    # %%
+
+    data_path = pth.Path("../results/2022-05-11_RT-Tol-Res/vial_04")
+    savefig = lambda x: None
+    show = plt.show
+    vprint = print
+    fig_path = pth.Path("../figrues/2022-05-11_RT-Tol-Res/vial_04")
 
     # %%
 
@@ -34,158 +93,34 @@ if __name__ == "__main__":
     vial = re.search("vial_(\d+)/?$", str(data_path)).groups()[0]
     print(f"preparing insertion plots for vial {vial}")
 
-    # load pileups and reference genome
+    # load insertions and consensus frequency
     insertions = load_insertions(data_path)
-    ref_genome = load_reference_genome(data_path)
-
-    # length of insertions in a dictionary { length -> n. insertions}
-    ins_Ls = {k: insertion_len(ins) for k, ins in insertions.items()}
-
-    # density of number of insertions, evaluated every `step` basepairs.
-    # both as number of insertions and length of sequence inserted.
-    # for each timepoints, objects are matrices whose rows correspond to
-    # intervals of length `step` in the genome, and the two columns are
-    # for forward and reverse reads.
-    step = 5000
-    L_tot = len(ref_genome)
-    n_ins_dens, len_ins_dens = {}, {}
-    for t, ins in insertions.items():
-        n_ins_dens[t], len_ins_dens[t] = insertion_density(ins, step, L_tot)
-
-    # create dictionary of colors for plotting
-    colors = color_dict(insertions)
-
-    # pick a threshold length above which only "n_threshold" insertions are
-    # present in the last timepoint.
-    n_selected = 25
-    ins_len_threshold = pick_insertion_threshold_length(ins_Ls, n_selected)
+    st_path = data_path / "stats" / "stats_table_reference_freq.pkl.gz"
+    st = StatsTable.load(st_path)
 
     # %%
-    # plot the distribution of insertion lengths and highligh the position of the longest `n_selected` insertions
 
-    fig, axs = plt.subplot_mosaic("""AABBBBBB""", figsize=(20, 4))
-    ax = axs["A"]
-    max_L = max([max(Ls.keys()) for t, Ls in ins_Ls.items()])
-    bins = np.logspace(0, np.log10(max_L) + 0.05, 40)
-    for t, Ls in ins_Ls.items():
-        l = list(Ls.keys())
-        n = list(Ls.values())
-        ax.hist(
-            l,
-            weights=n,
-            label=t,
-            bins=bins,
-            histtype="step",
-            color=colors[t],
-            cumulative=-1,
-        )
-    ax.axvline(ins_len_threshold, ls=":", color="gray")
-    ax.set_yscale("log")
-    ax.set_xscale("log")
-    ax.legend(title="time")
-    ax.set_xlabel("insertion length threshold [bp]")
-    ax.set_ylabel("n. insertions with length < threshold")
-    ax.set_title("insertion length distribution")
-
-    ax = axs["B"]
-    yticks, ylab = [], []
-    for nt, t in enumerate(insertions):
-        Is = insertions[t]
-        x = []
-        for pos, I in Is.items():
-            for seq, nums in I.items():
-                if len(seq) < ins_len_threshold:
-                    continue
-                x += [pos] * nums.sum()
-
-        y = -np.ones_like(x) * nt
-        yticks.append(-nt)
-        ylab.append(t)
-        ax.scatter(x, y, alpha=0.5, color=colors[t])
-    ax.xaxis.set_minor_locator(MultipleLocator(100000))
-    ax.grid(axis="x", which="both", alpha=0.5)
-    ax.set_yticks(yticks)
-    ax.set_yticklabels(ylab)
-    ax.set_title(f"location of insertions with length >= {ins_len_threshold} bp")
-    ax.set_ylabel("timepoints")
-    ax.set_xlabel("genome position [bp]")
-
-    plt.tight_layout()
-    savefig("insertions_length_distr.pdf")
-    show()
+    # build insertion dataframe
+    dfs = build_insertion_dataframes(insertions, st)
 
     # %%
-    # plot the density of insertions along the genome for subsequent
-    # timepoints (n. insertions for forward and reverse)
+    colors = color_dict(st.times)
 
-    # number of timepoints
-    NT = len(insertions)
+    for t in st.times:
+        df = dfs[t]
+        vals = df["I"]
+        bins = np.arange(vals.max() + 2) - 0.5
+        plt.hist(vals, label=f"t = {t}", histtype="step", bins=bins, color=colors[t])
+    plt.yscale("log")
+    plt.legend()
+    plt.show()
 
-    fig, axs = plt.subplots(NT, 1, figsize=(20, NT * 3), sharex=True, sharey=False)
-    for t_idx, t in enumerate(insertions):
-        ax = axs[t_idx]
-        nins = n_ins_dens[t]
-        x = np.arange(nins.shape[0]) * step
-        ax.plot(x, nins[:, 0], label="fwd")
-        ax.plot(x, nins[:, 1], label="rev")
-        ax.set_title(f"time = {t}")
+    bins = np.linspace(0, 1, 100)
+    for t in st.times:
+        df = dfs[t]
+        plt.hist(df["F"], label=f"t = {t}", histtype="step", bins=bins, color=colors[t])
+    plt.yscale("log")
+    plt.legend()
+    plt.show()
 
-        ax.xaxis.set_minor_locator(MultipleLocator(100000))
-        ax.grid(axis="both", which="both", alpha=0.5)
-        ax.set_xlim(x[0], x[-1])
-    axs[0].legend()
-    axs[-1].set_xlabel("genome position [bp]")
-    fig.supylabel("insertion density (n. insertions per bp)")
-    plt.tight_layout()
-    plt.subplots_adjust(hspace=0.12, left=0.07)
-    savefig("insertion_density_1.pdf")
-    show()
-
-    # %%
-    # plot the density of insertions along the genome for subsequent
-    # timepoints (n. insertions and n. nucleotides inserted)
-
-    # number of timepoints
-    NT = len(insertions)
-
-    fig, axs = plt.subplots(NT, 1, figsize=(20, NT * 3), sharex=True, sharey=False)
-    # taxs = []
-    for t_idx, t in enumerate(insertions):
-        ax = axs[t_idx]
-        nins, lins = n_ins_dens[t], len_ins_dens[t]
-        x = np.arange(nins.shape[0]) * step
-        (leg_a,) = ax.plot(x, nins.sum(axis=1), "C4")
-
-        tax = plt.twinx(ax)
-        (leg_b,) = tax.plot(x, lins.sum(axis=1), "C2")
-
-        # ax.set_yscale("log")
-        ax.set_title(f"time = {t}")
-        # ax.set_xlabel("insertion length threshold [bp]")
-        # ax.set_ylabel("n. insertions with length < threshold")
-        ax.xaxis.set_minor_locator(MultipleLocator(100000))
-        ax.grid(axis="x", which="both", alpha=0.5)
-        ax.set_xlim(x[0], x[-1])
-
-        # taxs.append(tax)
-
-    # m = min([tax.get_ylim()[0] for tax in taxs])
-    # M = max([tax.get_ylim()[1] for tax in taxs])
-    # for tax in taxs:
-    #     tax.set_ylim(m, M)
-
-    axs[0].legend([leg_a, leg_b], ["n. insertions", "len. insertions"])
-    axs[-1].set_xlabel("genome position [bp]")
-    fig.supylabel("insertion density (n. insertions per bp)")
-    fig.text(
-        s="insertion density (length insertions per bp)",
-        x=0.97,
-        y=0.5,
-        rotation="vertical",
-        fontsize="large",
-        verticalalignment="center",
-    )
-    plt.tight_layout()
-    plt.subplots_adjust(hspace=0.12, left=0.07, right=0.93)
-    savefig("insertion_density_2.pdf")
-    show()
+# %%

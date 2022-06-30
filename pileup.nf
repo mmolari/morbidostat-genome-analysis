@@ -7,7 +7,7 @@ params.time_beg = "1"
 
 // Parameters for the pileup script
 params.qual_min = 15
-params.max_insertion_size = 1000
+params.max_insertion_size = 10000
 
 // input files directory
 input_dir = file(params.input_fld)

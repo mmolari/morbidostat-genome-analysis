@@ -91,7 +91,7 @@ For each of these scripts, usage is:
 ```bash
 python3 scripts/pileupplots_consensus_frequency.py \
     --vial_fld results/2022-02-08_RT_test/vial_02 \
-    --fig_fld     figs/2022-02-08_RT_test/vial_02 \
+    --fig_fld figs/2022-02-08_RT_test/vial_02 \
     --verbose \
     --show
 ```

@@ -217,6 +217,9 @@ if __name__ == "__main__":
     sdf["pval"] = sdf.apply(lambda x: pval_dict[(x.position, x.type)], axis=1)
     sdf["rank"] = sdf.apply(lambda x: rank_dict[x.position], axis=1)
 
+    # make position 1-based
+    sdf["position"] += 1
+
     # reorder and save
     sdf.sort_values(
         ["rank", "position", "type"], ascending=[False, True, True], inplace=True

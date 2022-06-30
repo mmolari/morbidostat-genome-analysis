@@ -1,5 +1,4 @@
 # %%
-from lib2to3.pytree import NegatedPattern
 import pathlib as pth
 
 try:

@@ -87,11 +87,11 @@ if __name__ == "__main__":
     # %%
 
     # debug purpose
-    data_path = pth.Path("../results/2022-05-11_RT-Tol-Res/vial_04")
-    savefig = lambda x: None
-    show = plt.show
-    vprint = print
-    fig_path = pth.Path("../figures/2022-05-11_RT-Tol-Res/vial_04")
+    # data_path = pth.Path("../results/2022-05-11_RT-Tol-Res/vial_04")
+    # savefig = lambda x: None
+    # show = plt.show
+    # vprint = print
+    # fig_path = pth.Path("../figures/2022-05-11_RT-Tol-Res/vial_04")
 
     # %%
 

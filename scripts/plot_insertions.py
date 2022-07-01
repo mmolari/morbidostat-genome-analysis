@@ -17,20 +17,22 @@ except:
 # %%
 
 
-def n_ins(x):
-    return np.vstack(list(x.values())).sum(axis=0)
-
-
-def L_tot(x):
-    return np.vstack([I * len(seq) for seq, I in x.items()]).sum(axis=0)
-
-
 def build_insertion_dataframes(insertions, stats_table):
     """Function that builds a set of insertion dataframes, given the
     list of insertions and the StatsTable object containing the consensus
     frequency.
-    The return value is a dictionary with times as keys and dataframe
+    The return value is a dictionary with times as keys and dataframes as
+    values. The dataframes contain 4 x 3 columns, corresponding to number
+    of insertions (I), total number of reads (N) frequency of insertions
+    on total number of treads (F) and average length of insertions (L)
+    for forward, reverse and total reads (f,r,t).
     """
+
+    def n_ins(x):
+        return np.vstack(list(x.values())).sum(axis=0)
+
+    def L_tot(x):
+        return np.vstack([I * len(seq) for seq, I in x.items()]).sum(axis=0)
 
     Ts = stats_table.times
 
@@ -69,6 +71,44 @@ def build_insertion_dataframes(insertions, stats_table):
     return dfs
 
 
+def plot_histograms(dfs, Ts):
+    """Plots the histograms of number of insertions, insertion
+    frequencies and average length (It, Ft, Lt) for all the different
+    timepoints."""
+
+    fig, axs = plt.subplots(1, 3, figsize=(12, 4))
+
+    colors = color_dict(Ts)
+    ax = axs[0]
+    dx = {k: df["It"] for k, df in dfs.items()}
+    M = max([df.max() for df in dx.values()])
+    bins = np.arange(M + 2) - 0.5
+    dict_histograms(dx, ax, colors, bins=bins)
+    ax.set_yscale("log")
+    ax.set_xlabel("n. insertions")
+    ax.set_ylabel("n. sites")
+    ax.legend()
+
+    ax = axs[1]
+    dx = {k: df["Ft"] for k, df in dfs.items()}
+    dict_histograms(dx, ax, colors, bins=np.linspace(0, 1, 100))
+    ax.set_yscale("log")
+    ax.set_xlabel("insertion frequency")
+    ax.set_ylabel("n. sites")
+
+    ax = axs[2]
+    dx = {k: df["Lt"] for k, df in dfs.items()}
+    M = max([df.max() for df in dx.values()])
+    bins = np.logspace(0, np.log10(M), 50)
+    dict_histograms(dx, ax, colors, bins=bins)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("insertion average length (bp)")
+    ax.set_ylabel("n. sites")
+
+    return fig, axs
+
+
 # %%
 
 if __name__ == "__main__":
@@ -102,7 +142,9 @@ if __name__ == "__main__":
     # load insertions and consensus frequency
     insertions = load_insertions(data_path)
     st_path = data_path / "stats" / "stats_table_reference_freq.pkl.gz"
-    st = StatsTable.load(st_path)
+    st = StatsTable.load(st_path)  # consensus frequency for each site
+    Ts = np.sort(st.times)  # list of times
+    Tf = Ts[-1]  # final time
 
     # %%
 
@@ -112,38 +154,7 @@ if __name__ == "__main__":
     # %%
     # plot histogram of N. insertions, insertion frequency, insertion length
 
-    colors = color_dict(st.times)
-    # mask_f = lambda df: (df["Ff"] > 0) & (df["Fr"] > 0) & (df["It"] > 2)
-
-    fig, axs = plt.subplots(1, 3, figsize=(12, 4))
-
-    ax = axs[0]
-    dx = {k: df["It"] for k, df in dfs.items()}
-    M = max([df.max() for df in dx.values()])
-    bins = np.arange(M + 2) - 0.5
-    dict_histograms(dx, ax, colors, bins=bins)
-    ax.set_yscale("log")
-    ax.set_xlabel("n. insertions")
-    ax.set_ylabel("n. sites")
-    ax.legend()
-
-    ax = axs[1]
-    dx = {k: df["Ft"] for k, df in dfs.items()}
-    dict_histograms(dx, ax, colors, bins=np.linspace(0, 1, 100))
-    ax.set_yscale("log")
-    ax.set_xlabel("insertion frequency")
-    ax.set_ylabel("n. sites")
-
-    ax = axs[2]
-    dx = {k: df["Lt"] for k, df in dfs.items()}
-    M = max([df.max() for df in dx.values()])
-    bins = np.logspace(0, np.log10(M), 50)
-    dict_histograms(dx, ax, colors, bins=bins)
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlabel("insertion average length (bp)")
-    ax.set_ylabel("n. sites")
-
+    fig, ax = plot_histograms(dfs, Ts)
     plt.tight_layout()
     savefig("insertions_distributions.pdf")
     show()
@@ -151,7 +162,7 @@ if __name__ == "__main__":
     # %%
     # joint distribution
 
-    df = dfs[st.times.max()]
+    df = dfs[Tf]
 
     fig, axs = plt.subplots(1, 3, figsize=(14, 4))
 
@@ -191,7 +202,7 @@ if __name__ == "__main__":
 
     # %%
     # histogram of number of insertions
-    df = dfs[st.times.max()]
+    df = dfs[Tf]
 
     fig, axs = plt.subplots(2, 1, figsize=(12, 8))
 
@@ -224,29 +235,31 @@ if __name__ == "__main__":
     # %%
     # select relevant positions
 
-    df = dfs[st.times.max()]
+    df = dfs[Tf]
+    mask = (df["If"] > 0) & (df["Ir"] > 0)
 
     selected_pos = []
     NposI, NposF, NposL = 40, 40, 20
 
     # 1) select positions with highest total number of insertions
     # exclude positions with less than one insertion in both directions
-    mask = (df["If"] > 0) & (df["Ir"] > 0)
+    selected_pos += list(df["It"].sort_values(ascending=False)[:3].index)
     selected_pos += list(df[mask]["It"].sort_values(ascending=False)[:NposI].index)
 
     # 2) select position with high insertions frequency in both fwd and reverse (max fwd + rev)
+    selected_pos += list(df["Ft"].sort_values(ascending=False)[:3].index)
     selected_pos += list(df[mask]["Ft"].sort_values(ascending=False)[:NposF].index)
 
     # 3) select positions with long insertions
+    selected_pos += list(df["Lt"].sort_values(ascending=False)[:3].index)
     selected_pos += list(df[mask]["Lt"].sort_values(ascending=False)[:NposL].index)
 
     selected_pos = np.sort(np.unique(selected_pos))
 
     # %%
     # create dataframe
-    Tf = st.times.max()
     sel_df = dfs[Tf].loc[selected_pos].add_suffix(f"_{Tf}")
-    for t in st.times[::-1]:
+    for t in Ts[::-1]:
         if t == Tf:
             continue
         sel_df = sel_df.join(dfs[t].add_suffix(f"_{t}"), how="left")
@@ -257,7 +270,7 @@ if __name__ == "__main__":
     # %%
     # draw trajectories
 
-    threshold = 4
+    threshold = 5
     Nkept = len(selected_pos)
     Nx = 3
     Ny = int(np.ceil(Nkept / Nx))

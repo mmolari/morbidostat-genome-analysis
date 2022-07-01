@@ -109,6 +109,116 @@ def plot_histograms(dfs, Ts):
     return fig, axs
 
 
+def plot_joint_distr(df):
+    """Plots the joint distribution of forward and reverse values for
+    the insertion number, insertion frequency and insertion length
+    (I, F, T) corresponding to the last timepoint."""
+
+    fig, axs = plt.subplots(1, 3, figsize=(14, 4))
+
+    ax = axs[0]
+    f, r = df["If"], df["Ir"]
+    bins = np.arange(max([f.max(), r.max()]) + 2) - 0.5
+    norm = mpl.colors.LogNorm()
+    m = ax.hist2d(f, r, bins=bins, norm=norm)
+    ax.set_xlabel("n. insertions forward")
+    ax.set_ylabel("n. insertions reverse")
+    plt.colorbar(m[3], ax=ax, label="n. sites")
+
+    ax = axs[1]
+    f, r = df["Ff"], df["Fr"]
+    bins = np.linspace(0, 1, 25)
+    norm = mpl.colors.LogNorm()
+    m = ax.hist2d(f, r, bins=bins, norm=norm)
+    ax.set_xlabel("freq insertions forward")
+    ax.set_ylabel("freq insertions reverse")
+    plt.colorbar(m[3], ax=ax, label="n. sites")
+
+    ax = axs[2]
+    f, r = df["Lf"], df["Lr"]
+    M = max([f.max(), r.max()])
+    bins = np.logspace(0, np.log10(M), 25)
+    norm = mpl.colors.LogNorm()
+    m = ax.hist2d(f, r, bins=bins, norm=norm)
+    ax.set_xlabel("avg. insertion length forward")
+    ax.set_ylabel("avg. insertion length reverse")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    plt.colorbar(m[3], ax=ax, label="n. sites")
+
+    return fig, axs
+
+
+def plot_n_ins_genome(df, step=5000):
+    """Plots:
+    1) the number of insertions in forward and reverse reads over
+        (step) bp windows.
+    2) the average number of inserted basepairs over (step) bp windows. It weights
+        the insertion length by insertion frequency."""
+
+    fig, axs = plt.subplots(2, 1, figsize=(12, 8))
+
+    ax = axs[0]
+    sf, sr = df["If"], df["Ir"]
+    M = max([sf.index.max(), sr.index.max()])
+    bins = np.arange(0, M + step, step)
+    for s, l in zip([sf, sr], ["fwd", "rev"]):
+        ax.hist(s.index, weights=s.values, bins=bins, histtype="step", label=l)
+    ax.legend()
+    ax.set_xlim(bins[0], bins[-1])
+    ax.set_xlabel("genome position (bp)")
+    ax.set_ylabel(f"n. insertions per {step//1000} kbp")
+
+    ax = axs[1]
+    s = df["Lt"]
+    M = s.index.max()
+    bins = np.arange(0, M + step, step)
+    ax.hist(s.index, weights=s.values * df["Ft"], bins=bins, histtype="step", color="k")
+    ax.set_xlim(bins[0], bins[-1])
+    ax.set_xlabel("genome position (bp)")
+    ax.set_ylabel(f"avg. n. inserted bp per {step//1000} kbp")
+
+    return fig, axs
+
+
+def plot_trajectories(sel_df, Ts, threshold=5, Nx=3):
+    """Plot the frequency trajectories (n. insertions / tot n. reads) for the selected
+    trajectories. Black lines represent the total frequency, and blue and orange
+    markers represent respectively forward and reverse frequencies."""
+
+    Nkept = len(sel_df)
+    Ny = int(np.ceil(Nkept / Nx))
+    figsize = (Nx * 3, Ny * 1.5)
+
+    fig, axs = plt.subplots(Ny, Nx, figsize=figsize, sharex=True, sharey=True)
+
+    kinds = ["tot", "fwd", "rev"]
+
+    # plot trajectories
+    Ts = np.sort(st.times)
+    Tf = Ts[-1]
+    leg_pos = min([2, Nkept])
+    for ntr, it in enumerate(sel_df.iterrows()):
+        p, row = it
+        axidx = np.unravel_index(ntr, (Ny, Nx))
+        F = {k: [row[f"F{k[0]}_{t}"] for t in Ts] for k in kinds}
+        N = {k: [row[f"N{k[0]}_{t}"] for t in Ts] for k in kinds}
+        axidx = axidx[1] if Ny == 1 else axidx
+        ax = axs[axidx]
+        plot_trajectory(ax, F, N, Ts, thr=threshold, legend=ntr == leg_pos)
+        i = int(row[f"It_{Tf}"])
+        l = row[f"Lt_{Tf}"]
+        ax.set_title(f"pos={p+1}, I={i}, " + r"$\langle L \rangle$" + f"={l:.2}")
+
+    # remove extra axes
+    for i in range(Nkept, Nx * Ny):
+        axidx = np.unravel_index(i, (Ny, Nx))
+        axidx = axidx[1] if Ny == 1 else axidx
+        axs[axidx].remove()
+
+    return fig, axs
+
+
 # %%
 
 if __name__ == "__main__":
@@ -147,87 +257,31 @@ if __name__ == "__main__":
     Tf = Ts[-1]  # final time
 
     # %%
-
     # build insertion dataframe
     dfs = build_insertion_dataframes(insertions, st)
 
     # %%
     # plot histogram of N. insertions, insertion frequency, insertion length
 
-    fig, ax = plot_histograms(dfs, Ts)
+    fig, axs = plot_histograms(dfs, Ts)
     plt.tight_layout()
     savefig("insertions_distributions.pdf")
     show()
 
     # %%
-    # joint distribution
+    # joint distribution for the last timepoint
 
     df = dfs[Tf]
-
-    fig, axs = plt.subplots(1, 3, figsize=(14, 4))
-
-    ax = axs[0]
-    f, r = df["If"], df["Ir"]
-    bins = np.arange(max([f.max(), r.max()]) + 2) - 0.5
-    norm = mpl.colors.LogNorm()
-    m = ax.hist2d(f, r, bins=bins, norm=norm)
-    ax.set_xlabel("n. insertions forward")
-    ax.set_ylabel("n. insertions reverse")
-    plt.colorbar(m[3], ax=ax, label="n. sites")
-
-    ax = axs[1]
-    f, r = df["Ff"], df["Fr"]
-    bins = np.linspace(0, 1, 25)
-    norm = mpl.colors.LogNorm()
-    m = ax.hist2d(f, r, bins=bins, norm=norm)
-    ax.set_xlabel("freq insertions forward")
-    ax.set_ylabel("freq insertions reverse")
-    plt.colorbar(m[3], ax=ax, label="n. sites")
-
-    ax = axs[2]
-    f, r = df["Lf"], df["Lr"]
-    M = max([f.max(), r.max()])
-    bins = np.logspace(0, np.log10(M), 25)
-    norm = mpl.colors.LogNorm()
-    m = ax.hist2d(f, r, bins=bins, norm=norm)
-    ax.set_xlabel("avg. insertion length forward")
-    ax.set_ylabel("avg. insertion length reverse")
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    plt.colorbar(m[3], ax=ax, label="n. sites")
-
+    fig, axs = plot_joint_distr(df)
     plt.tight_layout()
     savefig("insertions_joint_dist_final_time.pdf")
     show()
 
     # %%
     # histogram of number of insertions
+
     df = dfs[Tf]
-
-    fig, axs = plt.subplots(2, 1, figsize=(12, 8))
-
-    ax = axs[0]
-    sf, sr = df["If"], df["Ir"]
-    M = max([sf.index.max(), sr.index.max()])
-    step = 5000
-    bins = np.arange(0, M + step, step)
-    ax.hist(sf.index, weights=sf.values, bins=bins, histtype="step", label="fwd")
-    ax.hist(sr.index, weights=sr.values, bins=bins, histtype="step", label="rev")
-    ax.legend()
-    ax.set_xlim(bins[0], bins[-1])
-    ax.set_xlabel("genome position (bp)")
-    ax.set_ylabel(f"n. insertions per {step//1000} kbp")
-
-    ax = axs[1]
-    s = df["Lt"]
-    M = s.index.max()
-    step = 5000
-    bins = np.arange(0, M + step, step)
-    ax.hist(s.index, weights=s.values * df["Ft"], bins=bins, histtype="step", color="k")
-    ax.set_xlim(bins[0], bins[-1])
-    ax.set_xlabel("genome position (bp)")
-    ax.set_ylabel(f"avg. n. inserted bp per {step//1000} kbp")
-
+    fig, axs = plot_n_ins_genome(df)
     plt.tight_layout()
     savefig("insertions_vs_genome.pdf")
     show()
@@ -236,13 +290,15 @@ if __name__ == "__main__":
     # select relevant positions
 
     df = dfs[Tf]
+
+    # For most of the selected trajectories, exclude positions having no
+    # insertions on forward or reverse reads
     mask = (df["If"] > 0) & (df["Ir"] > 0)
 
     selected_pos = []
-    NposI, NposF, NposL = 40, 40, 20
+    NposI, NposF, NposL = 40, 40, 20  # number of max selected positions (may coincide)
 
     # 1) select positions with highest total number of insertions
-    # exclude positions with less than one insertion in both directions
     selected_pos += list(df["It"].sort_values(ascending=False)[:3].index)
     selected_pos += list(df[mask]["It"].sort_values(ascending=False)[:NposI].index)
 
@@ -257,7 +313,7 @@ if __name__ == "__main__":
     selected_pos = np.sort(np.unique(selected_pos))
 
     # %%
-    # create dataframe
+    # create dataframe with only selected positions
     sel_df = dfs[Tf].loc[selected_pos].add_suffix(f"_{Tf}")
     for t in Ts[::-1]:
         if t == Tf:
@@ -269,54 +325,21 @@ if __name__ == "__main__":
 
     # %%
     # draw trajectories
-
-    threshold = 5
-    Nkept = len(selected_pos)
-    Nx = 3
-    Ny = int(np.ceil(Nkept / Nx))
-    figsize = (Nx * 3, Ny * 1.5)
-    fig, axs = plt.subplots(Ny, Nx, figsize=figsize, sharex=True, sharey=True)
-
-    kinds = ["tot", "fwd", "rev"]
-
-    # plot trajectories
-    Ts = np.sort(st.times)
-    Tf = Ts[-1]
-    leg_pos = min([2, Nkept])
-    for ntr, p in enumerate(selected_pos):
-        axidx = np.unravel_index(ntr, (Ny, Nx))
-        row = sel_df.loc[p]
-        F = {k: [row[f"F{k[0]}_{t}"] for t in Ts] for k in kinds}
-        N = {k: [row[f"N{k[0]}_{t}"] for t in Ts] for k in kinds}
-        axidx = axidx[1] if Ny == 1 else axidx
-        ax = axs[axidx]
-        plot_trajectory(ax, F, N, st.times, thr=threshold, legend=ntr == leg_pos)
-        i = int(row[f"It_{Tf}"])
-        l = row[f"Lt_{Tf}"]
-        ax.set_title(f"pos={p+1}, I={i}, " + r"$\langle L \rangle$" + f"= {l:.2}")
-
-    # remove extra axes
-    for i in range(Nkept, Nx * Ny):
-        axidx = np.unravel_index(i, (Ny, Nx))
-        axidx = axidx[1] if Ny == 1 else axidx
-        axs[axidx].remove()
-
+    fig, axs = plot_trajectories(sel_df, Ts, threshold=5)
     plt.tight_layout()
     savefig("insertions_trajectories.pdf")
     show()
 
     # %%
-
-    # export dataframe to csv
-
-    # make positions 1-based
-    sel_df.index += 1
+    # format dataframe and export to csv:
+    # separate each row of sel_df in three rows (tot, fwd, rev) and save
+    # the entries as F, N, I, L for each timepoint.
 
     kinds = ["tot", "fwd", "rev"]
     exp_df = []
     for p, row in sel_df.iterrows():
         for k in kinds:
-            it = {"position": p, "kind": k}
+            it = {"position": p + 1, "kind": k}
             for l, v in row.iteritems():
                 if l[1] == k[0]:
                     ln = l[0] + l[-2:]

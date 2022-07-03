@@ -7,7 +7,7 @@ params.time_beg = "1"
 
 // Parameters for the pileup script
 params.qual_min = 5
-params.max_insertion_size = 10000
+params.clip_minL = 100
 
 // input files directory
 input_dir = file(params.input_fld)
@@ -142,6 +142,7 @@ process pileup {
     output:
         path("pileup/allele_counts.npz")
         path("pileup/insertions.pkl.gz")
+        path("pileup/clips.pkl.gz")
 
     script:
         """
@@ -149,7 +150,7 @@ process pileup {
             --bam_file reads.sorted.bam \
             --out_dir pileup \
             --qual_min $params.qual_min \
-            --max_insertionsize $params.max_insertion_size
+            --clip_minL $params.clip_minL
         """
 }
 

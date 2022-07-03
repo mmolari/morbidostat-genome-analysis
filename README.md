@@ -22,7 +22,7 @@ The test dataset has been extracted from the morbidostat run labeled `2022-02-08
 
 ## workflow: building a pileup of mapped reads
 
-The workflow `pileup.nf` builds a pileup of the reads. For every vial, it maps reads for any timepoints to a reference genome, which is the one assembled from the initial timepoint for each vial. It generates the sorted bam file of mappings, together with a pileup matrix and a list of insertions. Usage is as follows:
+The workflow `pileup.nf` builds a pileup of the reads. For every vial, it maps reads for any timepoints to a reference genome, which is the one assembled from the initial timepoint for each vial. It generates the sorted bam file of mappings, together with a pileup matrix and a list of insertions and positions of clipped reads. Usage is as follows:
 
 ```bash
 nextflow run pileup.nf \
@@ -30,7 +30,7 @@ nextflow run pileup.nf \
     --input_fld test_dataset \
     --time_beg 1 \
     --qual_min 15 \
-    --max_insertion_size 1000  \
+    --clip_minL 100  \
     -resume
 ```
 
@@ -38,12 +38,16 @@ The input parameters are:
 - `profile` : if `cluster` is specified, then SLURM execution is activated. Otherwise local execution is used.
 - `input_fld` : folder containing the input reads. It must have the nested `vial_n/time_n` structure of archived morbidostat experiment data.
 - `time_beg` : the label corresponding to the first timepoint, whose assembled genome is used as reference (e.g. `1` for timepoint_1`)
-- `qual_min` and `max_insertion_size` : parameters of the script used to build the pileup. Only reads with quality higher than the threshold are used, and only insertions shorter than the threshold are considered.
+- `qual_min` : parameters of the script used to build the pileup. Only reads with quality higher than the threshold are used, and only insertions that have at least 70% of the sites meeting this threshold.
+- `clip_minL` : minimum length of clips that are added to the clip dictionary. Shorter clips are ignored.
+
+Nb: only primary reads are considered, and secondary or supplementary reads are excluded. In future updates we might want to consider secondary reads for clip positions.
 
 results are saved in the `results` folder, with a structure that mirrors the `vial_n/timepoint_n` structure of the input folder. Each of these subfolders will contain the following files:
 - `reads.sorted.bam` and `reads.sorted.bam.bai` : sorted `bam` file (and corresponding index) containing the mapping of the reads against the reference genome.
 - `pileup/allele_counts.npz` : pileup of the reads. This is a numpy tensor with dimension (2,6,L) corresponding to (1) forward-reverse reads, (2) allele `["A", "C", "G", "T", "-", "N"]` and (3) position.
 - `pileup/insertions.pkl.gz` : a nested dictionary of insertions, saved in pickle format and compressed with gzip. The structure is `position -> sequence -> [n. forward reads, n. reverse reads]`.
+- `pileup/clips.pkl.gz` : a dictionary of the form position -> [fwd clips, rev clips]. Contains the number of forward and reverse soft-clips ecountered in the reads at any given position, provided that the clipped part is longer than the threshold `clip_minL`.
 - `ref_genome.fa` and `ref_genome.gbk` : symlink to the reference genome used for mapping the reads (same vial, first timepoint), both in genbank and fasta format. 
 
 

@@ -168,6 +168,7 @@ def plot_n_ins_genome(df, step=5000):
     ax.set_xlim(bins[0], bins[-1])
     ax.set_xlabel("genome position (bp)")
     ax.set_ylabel(f"n. insertions per {step//1000} kbp")
+    ax.grid(alpha=0.3)
 
     ax = axs[1]
     s = df["Lt"]
@@ -177,6 +178,7 @@ def plot_n_ins_genome(df, step=5000):
     ax.set_xlim(bins[0], bins[-1])
     ax.set_xlabel("genome position (bp)")
     ax.set_ylabel(f"avg. n. inserted bp per {step//1000} kbp")
+    ax.grid(alpha=0.3)
 
     return fig, axs
 
@@ -237,11 +239,11 @@ if __name__ == "__main__":
     # %%
 
     # debug purpose
-    # data_path = pth.Path("../results/2022-05-11_RT-Tol-Res/vial_04")
-    # savefig = lambda x: None
-    # show = plt.show
-    # vprint = print
-    # fig_path = pth.Path("../figures/2022-05-11_RT-Tol-Res/vial_04")
+    data_path = pth.Path("../results/2022-05-11_RT-Tol-Res/vial_04")
+    savefig = lambda x: None
+    show = plt.show
+    vprint = print
+    fig_path = pth.Path("../figures/2022-05-11_RT-Tol-Res/vial_04")
 
     # %%
 

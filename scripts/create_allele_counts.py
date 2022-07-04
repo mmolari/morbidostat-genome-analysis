@@ -57,7 +57,7 @@ def sam_to_allele_counts(
                     ac_array(L),  # pileup
                     insertion_datastruct(),  # list of insertions
                     clip_datastructure(),  # count of clipped reads
-                    defaultdict(list),  # sequence of clipped reads
+                    defaultdict(lambda: {0: [], 1: []}),  # sequence of clipped reads
                 )
             )
 
@@ -94,7 +94,8 @@ def sam_to_allele_counts(
                 if block_type == 4:  # softclip
                     if block_len >= clip_minL:
                         clip_count[pos][rev] += 1
-                        clip_seqs[pos].append(seq[:block_len])
+                        seqb = seq[:block_len]
+                        clip_seqs[pos][rev].append(seqb.tobytes().decode())
                     seq = seq[block_len:]
                     qual = qual[block_len:]
 

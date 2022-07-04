@@ -112,7 +112,7 @@ def plot_histograms(dfs, Ts):
 def plot_joint_distr(df):
     """Plots the joint distribution of forward and reverse values for
     the insertion number, insertion frequency and insertion length
-    (I, F, T) corresponding to the last timepoint."""
+    (I, F, L) corresponding to the last timepoint."""
 
     fig, axs = plt.subplots(1, 3, figsize=(14, 4))
 
@@ -217,6 +217,9 @@ def plot_trajectories(sel_df, Ts, threshold=5, Nx=3):
         axidx = np.unravel_index(i, (Ny, Nx))
         axidx = axidx[1] if Ny == 1 else axidx
         axs[axidx].remove()
+
+    fig.supylabel("insertion frequency")
+    fig.supxlabel("timepoint")
 
     return fig, axs
 

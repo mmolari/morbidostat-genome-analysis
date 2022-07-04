@@ -36,22 +36,41 @@ def argparser():
 # ~~~~~~~~~~~~~~~~ LOADING UTILS ~~~~~~~~~~~~~~~~
 
 
-def load_insertions(data_path):
+def load_time_dict(data_path, filename):
     """Given the path to the vial_X folder of interest, this function
-    loads all the corresponding insertions dictionaries. Returns them
-    in a nested dictionary whose keys are timepoint labels."""
+    loads a dictionary per timepoint, returning it in a nested
+    dictionary whose keys are timepoint labels.
+    The dictionaries are named `time_X/pileup/filename`."""
     # list of "time_*" folders
     timepoint_fld = sorted(list(data_path.glob("time_*")))
     # define regex to extract timepoint label
     m = re.compile("/time_(.+)$")
     # build and return dictionary of pileup matrices
-    insertions = {}
+    dicts = {}
     for tpf in timepoint_fld:
         time_id = m.search(str(tpf)).groups()[0]
-        tp_file = tpf / "pileup" / "insertions.pkl.gz"
+        tp_file = tpf / "pileup" / filename
         with gzip.open(tp_file, "r") as f:
-            insertions[time_id] = pkl.load(f)
-    return insertions
+            dicts[time_id] = pkl.load(f)
+    return dicts
+
+
+load_insertions = lambda data_path: load_time_dict(data_path, "insertions.pkl.gz")
+
+
+def load_clips(data_path):
+    """Given the path to the vial_X folder of interest, this function
+    loads the dictionaries of clip count and clip sequences for all timepoints.
+    It returns them as two nested dictionaries whose keys are timepoints."""
+    dicts = load_time_dict(data_path, "clips.pkl.gz")
+
+    clip_count, clip_seqs = {}, {}
+
+    for t, d in dicts.items():
+        clip_count[t] = d["count"]
+        clip_seqs[t] = d["seqs"]
+
+    return clip_count, clip_seqs
 
 
 # ~~~~~~~~~~~~~~~~ PROCESSING UTILS ~~~~~~~~~~~~~~~~

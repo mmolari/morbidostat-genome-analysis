@@ -14,7 +14,7 @@ regex = /\/vial_(\d+)/
 input_ch = Channel.fromPath("${input_dir}/vial_*", type:"dir")
     .map { it -> [vial: (it =~ regex)[0][1], fld: it] }
 
-plot_scripts = ["plot_coverage.py", "plot_consensus_freq.py", "plot_gaps.py", "plot_insertions.py"]
+plot_scripts = ["plot_coverage.py", "plot_consensus_freq.py", "plot_gaps.py", "plot_insertions.py", "plot_clips.py"]
 
 
 process plot_script {

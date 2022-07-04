@@ -37,9 +37,9 @@ def sam_to_allele_counts(
 
     # Note: the data structure for saving clip points is a dictionary:
     # position -->  count
-    #  (dict)   (count fwd / count rev)
+    #  (dict)   (count fwd / count rev / tot fwd / tot rev)
     def clip_datastructure():
-        return defaultdict(lambda: np.zeros(2, int))
+        return defaultdict(lambda: np.zeros(4, int))
 
     # Open BAM or SAM file
     with pysam.Samfile(sam_fname) as samfile:
@@ -51,18 +51,34 @@ def sam_to_allele_counts(
             L = samfile.lengths[nref]
             if VERBOSE:
                 print(("allocating for:", name, "length:", L))
-            ac.append((name, ac_array(L), insertion_datastruct(), clip_datastructure()))
+            ac.append(
+                (
+                    name,  # name of reference
+                    ac_array(L),  # pileup
+                    insertion_datastruct(),  # list of insertions
+                    clip_datastructure(),  # count of clipped reads
+                    defaultdict(list),  # sequence of clipped reads
+                )
+            )
 
         # Iterate over single reads
         for i, read in enumerate(samfile):
 
+            # Print output
+            if (VERBOSE > 2) and (not ((i + 1) % 10000)):
+                print(f"read n. {i + 1}")
+
             if read.is_unmapped or read.is_secondary or read.is_supplementary:
                 continue
 
+            rev = int(read.is_reverse)
+            icmax = len(read.cigar) - 1
+
             # Read CIGARs (they should be clean by now)
-            counts = ac[read.rname][1][int(read.is_reverse)]
+            counts = ac[read.rname][1][rev]
             insertion = ac[read.rname][2]
-            clips = ac[read.rname][3]
+            clip_count = ac[read.rname][3]
+            clip_seqs = ac[read.rname][4]
 
             seq = np.frombuffer(read.seq.encode(), "S1")
             qual = np.frombuffer(read.qual.encode(), np.int8) - 33
@@ -71,21 +87,22 @@ def sam_to_allele_counts(
             # Iterate over CIGARs
             for ic, (block_type, block_len) in enumerate(read.cigar):
 
-                # Print output
-                if (VERBOSE > 2) and (not ((ic + 1) % 10000)):
-                    print(f"read n. {ic + 1}")
+                # increment total read start/end counter
+                if ic == 0:
+                    clip_count[pos][rev + 2] += 1
 
                 if block_type == 4:  # softclip
                     if block_len >= clip_minL:
-                        clips[pos][int(read.is_reverse)] += 1
+                        clip_count[pos][rev] += 1
+                        clip_seqs[pos].append(seq[:block_len])
                     seq = seq[block_len:]
                     qual = qual[block_len:]
-                    continue
-                if block_type == 5:  # hard clip
+
+                elif block_type == 5:  # hard clip
                     if block_len >= clip_minL:
-                        clips[pos][int(read.is_reverse)] += 1
-                    continue
-                if block_type == 0:  # Inline block
+                        clip_count[pos][rev] += 1
+
+                elif block_type == 0:  # Inline block
                     seqb = seq[:block_len]
                     qualb = qual[:block_len]
                     # Increment counts
@@ -95,10 +112,9 @@ def sam_to_allele_counts(
                             counts[j, pos + posa] += 1
 
                     # Chop off this block
-                    if ic != len(read.cigar) - 1:
-                        seq = seq[block_len:]
-                        qual = qual[block_len:]
-                        pos += block_len
+                    seq = seq[block_len:]
+                    qual = qual[block_len:]
+                    pos += block_len
 
                 elif block_type == 2:  # Deletion
                     # Increment gap counts
@@ -114,12 +130,10 @@ def sam_to_allele_counts(
                     qualb = qual[:block_len]
                     # Accept only high-quality inserts
                     if (qualb >= qual_min).mean() > 0.7:
-                        insertion[pos][seqb.tobytes().decode()][
-                            int(read.is_reverse)
-                        ] += 1
+                        insertion[pos][seqb.tobytes().decode()][rev] += 1
 
                     # Chop off seq, but not pos
-                    if ic != len(read.cigar) - 1:
+                    if ic != icmax:
                         seq = seq[block_len:]
                         qual = qual[block_len:]
 
@@ -127,6 +141,10 @@ def sam_to_allele_counts(
                 else:
                     if VERBOSE > 2:
                         print(("unrecognized CIGAR type:", read.cigarstring))
+
+                # increment total read start/end counter
+                if ic == icmax:
+                    clip_count[pos][rev + 2] += 1
 
     return ac
 
@@ -143,13 +161,15 @@ def dump_allele_counts(dirname, ac, suffix=""):
         except:
             raise "creating directory failed"
 
-    for refname, ac_array, insertions, clips in ac:
+    for refname, ac_array, insertions, clips, clip_seqs in ac:
         print(refname)
         np.savez_compressed(dirname + "allele_counts" + suffix + ".npz", ac_array)
         with gzip.open(dirname + "insertions" + suffix + ".pkl.gz", "w") as outfile:
             pickle.dump({k: dict(v) for k, v in insertions.items()}, outfile)
+
+        clip_dict = {"count": dict(clips), "seqs": dict(clip_seqs)}
         with gzip.open(dirname + "clips" + suffix + ".pkl.gz", "w") as outfile:
-            pickle.dump(dict(clips), outfile)
+            pickle.dump(clip_dict, outfile)
 
 
 # %%
@@ -171,9 +191,9 @@ if __name__ == "__main__":
         args.bam_file, qual_min=args.qual_min, clip_minL=args.clip_minL, VERBOSE=3
     )
 
-    ac_renamed = []
-    for refname, counts, insertions, clips in ac:
-        ac_renamed.append((refname.replace("/", "_"), counts, insertions, clips))
-    ac = ac_renamed
+    for n, a in enumerate(ac):
+        # replace slashes in name
+        new_name = a[0].replace("/", "_")
+        ac[n] = tuple([new_name] + list(a[1:]))
 
     dump_allele_counts(args.out_dir, ac)

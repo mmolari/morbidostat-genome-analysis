@@ -47,7 +47,7 @@ results are saved in the `results` folder, with a structure that mirrors the `vi
 - `reads.sorted.bam` and `reads.sorted.bam.bai` : sorted `bam` file (and corresponding index) containing the mapping of the reads against the reference genome.
 - `pileup/allele_counts.npz` : pileup of the reads. This is a numpy tensor with dimension (2,6,L) corresponding to (1) forward-reverse reads, (2) allele `["A", "C", "G", "T", "-", "N"]` and (3) position.
 - `pileup/insertions.pkl.gz` : a nested dictionary of insertions, saved in pickle format and compressed with gzip. The structure is `position -> sequence -> [n. forward reads, n. reverse reads]`.
-- `pileup/clips.pkl.gz` : a dictionary of the form position -> [fwd clips, rev clips]. Contains the number of forward and reverse soft-clips ecountered in the reads at any given position, provided that the clipped part is longer than the threshold `clip_minL`.
+- `pileup/clips.pkl.gz` : a pickle file containing two dictionaries (accessible with the "count" and "seqs" tags). The first has the form `{position -> [fwd clips, rev clips, tot fwd read ends, tot rev read ends]}`. Contains the number of forward and reverse soft-clips ecountered in the reads at any given position, provided that the clipped part is longer than the threshold `clip_minL`. It also contains the total number of reads that end at that position, even if they do not meet the threshold. On a separate dictionary (under the "seqs" tag) for each position we save the clipped nucleotide sequence. This dictionary has the form `{position -> {0 or 1 for fwd / rev -> seq }}`.
 - `ref_genome.fa` and `ref_genome.gbk` : symlink to the reference genome used for mapping the reads (same vial, first timepoint), both in genbank and fasta format. 
 
 
@@ -89,6 +89,7 @@ The executed scripts are:
 - `plot_consensus_freq.py`
 - `plot_gaps.py`
 - `plot_insertions.py`
+- `plot_clips.py`
 
 For each of these scripts, usage is:
 

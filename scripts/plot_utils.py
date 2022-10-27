@@ -49,6 +49,7 @@ def load_time_dict(data_path, filename):
     dicts = {}
     for tpf in timepoint_fld:
         time_id = m.search(str(tpf)).groups()[0]
+        time_id = int(time_id)
         tp_file = tpf / "pileup" / filename
         with gzip.open(tp_file, "r") as f:
             dicts[time_id] = pkl.load(f)

@@ -139,7 +139,9 @@ def color_dict(timepoints):
 def dict_histograms(items_dict, ax, colors, plotmeans=False, **kwargs):
     """plot the histogram of a dictionary of items"""
     means = {tp: arr.mean() for tp, arr in items_dict.items()}
-    for tp, arr in items_dict.items():
+    ordered_Ts = sorted(items_dict.keys())
+    for tp in ordered_Ts:
+        arr = items_dict[tp]
         ax.hist(arr, label=tp, histtype="step", color=colors[tp], **kwargs)
         if plotmeans:
             ax.axvline(means[tp], ls=":", color=colors[tp])

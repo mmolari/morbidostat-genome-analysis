@@ -3,7 +3,7 @@ params.input_fld = "test_dataset"
 
 // label that marks the first timepoint in the series, from which the reference genome should be taken
 // TODO: convert time and vial numbers to integer? This will make it easier to find the first timepoint? 
-params.time_beg = "1"
+params.time_beg = 1
 
 // Parameters for the pileup script
 params.qual_min = 5
@@ -13,77 +13,50 @@ params.clip_minL = 100
 input_dir = file(params.input_fld)
 assert input_dir.isDirectory()
 
-// source scripts directory
-script_dir = file("$baseDir/scripts")
+// results directory
+output_dir = "$baseDir/results/${input_dir.getName()}"
 
-// string corresponding to the first timepoint
-time_beg_id = params.time_beg as String
-
-// reads input channel. Has items [n. vial, timepoint, file]
-regex1 = /\/vial_(\d+)\/time_([^\/\s]+)\/reads\.fastq\.gz$/
-reads_in = Channel.fromPath("${input_dir}/vial_*/time_*/reads.fastq.gz")
-    // .map { extract_vial_timepoint(it) }
-    .map {it -> [vial: (it =~ regex1)[0][1],
-                timepoint: (it =~ regex1)[0][2],
-                file: it]}
-
-
-// assembled genome input channel. Has items [n. vial, timepoint, file]
-// filtered so that only the first timepoint is kept
-regex2 = /\/vial_(\d+)\/time_([^\/\s]+)\/assembled_genome\/assembly\.fna$/
-genome_in = Channel.fromPath("${input_dir}/vial_*/time_*/assembled_genome/assembly.fna")
-    .map {it -> [vial: (it =~ regex2)[0][1],
-                timepoint: (it =~ regex2)[0][2],
-                file: it]}
-
-
-//  combine each set of reads with the input genome from the first timepoint
-genome_in.cross(reads_in) { it -> it.vial }
-    .map {
-        // returns: [vial n., timepoint, reference genome, reads]
-        it -> [it[0].vial, it[1].timepoint, it[0].file, it[1].file]
-    }
-    .into { minimap_in; symlink_creation}
-
-// function to create symlinks of reference genomes
-def save_genome_symlink(vial, timepoint, genome_fa_file) {
-
-    // make destination folder 
-    dest_str = "$baseDir/results/${input_dir.getName()}/vial_${vial}/time_${timepoint}/"
-    dest_dir = file(dest_str)
-    dest_dir.mkdirs()
-
-    // define names of destination files
-    gf_fa_dest = dest_str + "ref_genome.fa"
-    gf_gbk_dest = dest_str + "ref_genome.gbk"
-
-    // define genbank source file name
-    genome_gbk_file = (genome_fa_file as String).replaceFirst(/assembly.fna$/, "assembly.gbk")
-
-    // create symlinks
-    genome_fa_file.mklink(gf_fa_dest, overwrite:true)
-    file(genome_gbk_file).mklink(gf_gbk_dest, overwrite:true)
-
-    return "created symlink for reference genome for vial $vial timepoint $timepoint"
+// function to extract vial and timepoint from file path
+def extract_vial_timepoint(fname) {
+    regex = /\/vial_(\d+)\/time_(\d+)\//
+    match = (fname =~ regex)[0]
+    return [vial: match[1] as Integer, timepoint: match[2] as Integer]
 }
 
-// create symlinks for reference genome
-symlink_creation.map { save_genome_symlink(it[0], it[1], it[2]) } .view()
+// process to create symlink of reference genome in each vial/timepoint folder
+process create_symlinks {
 
-// map reads to the reference genome, the output is a sam file
-process map_reads_to_genome {
-
-    label 'q30m'
+    publishDir "$output_dir/vial_${vial}/time_${timepoint}/",
+        mode: "copyNoFollow"
 
     input:
-        tuple val(vial), val(timepoint), file(genome), file(reads) from minimap_in 
+        tuple val(vial), val(timepoint), path("ref_genome.fa"), path("ref_genome.gbk"), path("reads.fastq.gz")
 
     output:
-        tuple val(vial), val(timepoint), file("reads.sam") into minimap_out
+        path "ref_genome.fa"
+        path "ref_genome.gbk"
+        path "reads.fastq.gz"
+
+    """
+    echo "creating symlink for reference genome for vial $vial timepoint $timepoint"
+    """
+}
+
+// map reads to the reference genome, the output is a sam file
+process map_reads {
+
+    label 'q30m'
+    conda "conda_envs/read_map.yml"
+
+    input:
+        tuple val(vial), val(timepoint), path(genome_fa), path(genome_gbk), path(reads)
+
+    output:
+        tuple val(vial), val(timepoint), path("reads.sam")
 
     script:
         """
-        minimap2 -a -x map-ont -t ${task.cpus} $genome $reads > reads.sam
+        minimap2 -a -x map-ont -t ${task.cpus} $genome_fa $reads > reads.sam
         """
 }
 
@@ -92,14 +65,15 @@ process map_reads_to_genome {
 process sort_mapped_reads {
 
     label 'q30m'
+    conda "conda_envs/read_map.yml"
 
-    publishDir "results/${input_dir.getName()}/vial_${vial}/time_${timepoint}/", mode: 'copy'
+    publishDir "$output_dir/vial_${vial}/time_${timepoint}/", mode: 'copy'
 
     input:
-        tuple val(vial), val(timepoint), file("reads.sam") from minimap_out
+        tuple val(vial), val(timepoint), path("reads.sam")
 
     output:
-        tuple val(vial), val(timepoint), file("reads.sorted.bam") into samtools_out
+        tuple val(vial), val(timepoint), path("reads.sorted.bam")
 
     script:
         """
@@ -107,18 +81,17 @@ process sort_mapped_reads {
         """
 }
 
-// duplicate the channel for the indexing and the pileup
-samtools_out.into { index_in; pileup_in}
-
-// Create an index for the bam file
+// create an index for the bam file
 process index_sorted_reads {
 
     label 'q30m'
+    conda "conda_envs/read_map.yml"
 
-    publishDir "results/${input_dir.getName()}/vial_${vial}/time_${timepoint}/", mode: 'copy'
+
+    publishDir "$output_dir/vial_${vial}/time_${timepoint}/", mode: 'copy'
 
     input:
-        tuple val(vial), val(timepoint), file("reads.sorted.bam") from index_in
+        tuple val(vial), val(timepoint), path("reads.sorted.bam")
 
     output:
         path("reads.sorted.bam.bai")
@@ -133,11 +106,12 @@ process index_sorted_reads {
 process pileup {
 
     label 'q6h_1core'
+    conda "conda_envs/bioinfo_raw.yml"
 
-    publishDir "results/${input_dir.getName()}/vial_${vial}/time_${timepoint}/", mode: 'copy'
+    publishDir "$output_dir/vial_${vial}/time_${timepoint}/", mode: 'copy'
 
     input:
-        tuple val(vial), val(timepoint), file("reads.sorted.bam") from pileup_in
+        tuple val(vial), val(timepoint), path("reads.sorted.bam")
 
     output:
         path("pileup/allele_counts.npz")
@@ -146,7 +120,7 @@ process pileup {
 
     script:
         """
-        python3 $script_dir/create_allele_counts.py \
+        python3 $baseDir/scripts/create_allele_counts.py \
             --bam_file reads.sorted.bam \
             --out_dir pileup \
             --qual_min $params.qual_min \
@@ -154,3 +128,37 @@ process pileup {
         """
 }
 
+workflow {
+
+    // string corresponding to the first timepoint
+    time_beg_id = params.time_beg as Integer
+
+    // reads input channel. Has items [vial, timepoint, reads]
+    reads = Channel.fromPath("${input_dir}/vial_*/time_*/reads.fastq.gz")
+        .map {it -> extract_vial_timepoint(it) + [reads:it]}
+    
+    // assembled genome input channel. Has items [vial, timepoint, fa, gbk]
+    // filtered so that only the first timepoint is kept
+    assembled_genomes = Channel.fromFilePairs("${input_dir}/vial_*/time_*/assembled_genome/assembly.{fna,gbk}")
+        .map {it -> it[1] } // only file pair
+        .map {it -> extract_vial_timepoint(it[0]) + [fna:it[0], gbk:it[1]] }
+        .filter {it -> it.timepoint == time_beg_id}
+
+
+    // combine genomes with reads, using vial as common key.
+    // Each set of reads is assigned the rescpective reference genome
+    combined = assembled_genomes.cross(reads) {it -> it.vial }
+        .map {it -> [it[0].vial, it[1].timepoint, it[0].fna, it[0].gbk, it[1].reads]}
+
+    // create symlinks of reference genomes and reads
+    create_symlinks(combined)
+    
+    // map and sort reads
+    sorted_reads = map_reads(combined) | sort_mapped_reads
+
+    // create index for sorted reads
+    index_sorted_reads(sorted_reads)
+
+    // perform pileup
+    pileup(sorted_reads)
+}

@@ -1,4 +1,3 @@
-from click import password_option
 import numpy as np
 import re
 import argparse

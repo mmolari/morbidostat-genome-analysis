@@ -49,6 +49,7 @@ def load_time_dict(data_path, filename):
     dicts = {}
     for tpf in timepoint_fld:
         time_id = m.search(str(tpf)).groups()[0]
+        time_id = int(time_id)
         tp_file = tpf / "pileup" / filename
         with gzip.open(tp_file, "r") as f:
             dicts[time_id] = pkl.load(f)
@@ -138,7 +139,9 @@ def color_dict(timepoints):
 def dict_histograms(items_dict, ax, colors, plotmeans=False, **kwargs):
     """plot the histogram of a dictionary of items"""
     means = {tp: arr.mean() for tp, arr in items_dict.items()}
-    for tp, arr in items_dict.items():
+    ordered_Ts = sorted(items_dict.keys())
+    for tp in ordered_Ts:
+        arr = items_dict[tp]
         ax.hist(arr, label=tp, histtype="step", color=colors[tp], **kwargs)
         if plotmeans:
             ax.axvline(means[tp], ls=":", color=colors[tp])

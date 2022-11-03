@@ -39,7 +39,7 @@ def build_insertion_dataframes(insertions, stats_table):
     dfs = {}
     for t in Ts:
 
-        ins = insertions[str(t)]
+        ins = insertions[t]
         pos = np.array(sorted(ins.keys()))
         df = {}
 

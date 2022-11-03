@@ -128,8 +128,8 @@ def plot_joint_distr(df):
     bins = np.arange(max([f.max(), r.max()]) + 2) - 0.5
     norm = mpl.colors.LogNorm()
     m = ax.hist2d(f, r, bins=bins, norm=norm)
-    ax.set_xlabel("n. insertions forward")
-    ax.set_ylabel("n. insertions reverse")
+    ax.set_xlabel("n. clips forward")
+    ax.set_ylabel("n. clips reverse")
     plt.colorbar(m[3], ax=ax, label="n. sites")
 
     ax = axs[1]
@@ -137,8 +137,8 @@ def plot_joint_distr(df):
     bins = np.linspace(0, 1, 25)
     norm = mpl.colors.LogNorm()
     m = ax.hist2d(f, r, bins=bins, norm=norm)
-    ax.set_xlabel("freq insertions forward")
-    ax.set_ylabel("freq insertions reverse")
+    ax.set_xlabel("freq clips forward")
+    ax.set_ylabel("freq clips reverse")
     plt.colorbar(m[3], ax=ax, label="n. sites")
 
     ax = axs[2]
@@ -148,8 +148,8 @@ def plot_joint_distr(df):
     bins = np.logspace(np.log10(m) - 0.1, np.log10(M) + 0.1, 25)
     norm = mpl.colors.LogNorm()
     m = ax.hist2d(f, r, bins=bins, norm=norm)
-    ax.set_xlabel("avg. insertion length forward")
-    ax.set_ylabel("avg. insertion length reverse")
+    ax.set_xlabel("avg. clip length forward")
+    ax.set_ylabel("avg. clip length reverse")
     ax.set_xscale("log")
     ax.set_yscale("log")
     plt.colorbar(m[3], ax=ax, label="n. sites")
@@ -179,7 +179,7 @@ def plot_n_clips_genome(dfs, step=5000):
         ax.legend()
         ax.set_xlim(bins[0] - step * 5, bins[-1] + step * 5)
         ax.set_xlabel("genome position (bp)")
-        ax.set_ylabel(f"n. insertions per {step//1000} kbp")
+        ax.set_ylabel(f"n. clips per {step//1000} kbp")
         ax.grid(alpha=0.3)
         ax.set_title(f"t = {t}")
         ytl = [int(y) for y in ax.get_yticks()]
@@ -260,7 +260,7 @@ if __name__ == "__main__":
 
     # get vial number
     vial = re.search("vial_(\d+)/?$", str(data_path)).groups()[0]
-    print(f"preparing insertion plots for vial {vial}")
+    print(f"preparing clip plots for vial {vial}")
 
     # load clips and consensus frequency
     clips, clip_seqs = load_clips(data_path)

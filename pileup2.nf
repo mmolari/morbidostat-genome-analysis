@@ -106,7 +106,7 @@ process index_sorted_reads {
 process pileup {
 
     label 'q6h_1core'
-    conda "conda_envs/bioinfo.yml"
+    conda "conda_envs/bioinfo_raw.yml"
 
     publishDir "$output_dir/vial_${vial}/time_${timepoint}/", mode: 'copy'
 

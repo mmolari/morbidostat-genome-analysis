@@ -16,7 +16,7 @@ def extract_vial_n(fld) {
 process extract_script {
 
     label 'q6h_1core'
-    conda 'conda_envs/bioinfo.yml'
+    conda 'conda_envs/bioinfo_raw.yml'
 
     publishDir "${input_dir}/vial_${vial}/stats/", mode: 'copy'
 

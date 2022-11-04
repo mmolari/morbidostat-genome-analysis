@@ -7,9 +7,9 @@ import pandas as pd
 import re
 
 try:
-    from plot_utils import *
+    from utils.plot_utils import *
 except:
-    from .plot_utils import *
+    from .utils.plot_utils import *
 
 # %%
 

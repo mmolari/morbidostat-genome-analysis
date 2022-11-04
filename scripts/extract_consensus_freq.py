@@ -2,9 +2,9 @@
 import pathlib as pth
 
 try:
-    from extract_stats_utils import *
+    from utils.extract_stats_utils import *
 except:
-    from .extract_stats_utils import *
+    from .utils.extract_stats_utils import *
 
 # %%
 

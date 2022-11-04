@@ -45,7 +45,8 @@ flowchart TB
     PP(["allele_counts.npz
         insertions.pkl.gz
         clips.pkl.gz"])
-    Pum(["unmapped.json"])
+    Pum(["unmapped.csv
+        unmapped.fastq.gz"])
 
     Afa --> Sam
     R --> |"minimap2"| Sam
@@ -74,7 +75,7 @@ The output files are saved, using the same `vial_XX/time_YY` nested folder struc
 - `allele_counts.npz`:
 - `insertions.pkl.gz`:
 - `clips.pkl.gz`:
-- `unmapped.json`:
+- `unmapped.{csv,fastq.gz}`:
 
 **Input files organization**
 

@@ -138,14 +138,16 @@ process unmapped {
         tuple val(vial), val(timepoint), path("reads.sorted.bam")
 
     output:
-        path("unmapped.json")
+        path("unmapped.csv"), optional: true
+        path("unmapped.fastq.gz"), optional: true
 
 
     script:
         """
         python3 $baseDir/scripts/pileup_unmapped.py \
             --bam reads.sorted.bam \
-            --json_out unmapped.json
+            --df_out unmapped.csv \
+            --fastq_out unmapped.fastq.gz
         """
 }
 

@@ -10,9 +10,6 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--bam", type=str, help="sorted bam file")
     parser.add_argument("--json_out", type=str, help="output json file")
-    parser.add_argument(
-        "--verbose", help="verbose logging on stdout.", action="store_true"
-    )
     return parser.parse_args()
 
 

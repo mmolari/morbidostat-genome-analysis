@@ -162,7 +162,7 @@ workflow {
     
     // assembled genome input channel. Has items [vial, timepoint, fa, gbk]
     // filtered so that only the first timepoint is kept
-    assembled_genomes = Channel.fromFilePairs("${input_dir}/vial_*/time_*/assembled_genome/assembly.{fna,gbk}")
+    assembled_genomes = Channel.fromFilePairs("${input_dir}/vial_*/time_*/assembled_genome/*.{fna,gbk}")
         .map {it -> it[1] } // only file pair
         .map {it -> extract_vial_timepoint(it[0]) + [fna:it[0], gbk:it[1]] }
         .filter {it -> it.timepoint == time_beg_id}

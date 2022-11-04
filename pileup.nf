@@ -128,6 +128,27 @@ process pileup {
         """
 }
 
+process unmapped {
+    label 'q30m'
+    conda 'conda_envs/bioinfo_raw.yml'
+
+    publishDir "$output_dir/vial_${vial}/time_${timepoint}/pileup", mode: 'copy'
+
+    input:
+        tuple val(vial), val(timepoint), path("reads.sorted.bam")
+
+    output:
+        path("unmapped.json")
+
+
+    script:
+        """
+        python3 $baseDir/scripts/pileup_unmapped.py \
+            --bam reads.sorted.bam \
+            --json_out unmapped.json
+        """
+}
+
 workflow {
 
     // string corresponding to the first timepoint
@@ -161,4 +182,5 @@ workflow {
 
     // perform pileup
     pileup(sorted_reads)
+    unmapped(sorted_reads)
 }

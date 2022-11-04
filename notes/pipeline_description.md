@@ -45,6 +45,7 @@ flowchart TB
     PP(["allele_counts.npz
         insertions.pkl.gz
         clips.pkl.gz"])
+    Pum(["unmapped.json"])
 
     Afa --> Sam
     R --> |"minimap2"| Sam
@@ -55,6 +56,7 @@ flowchart TB
     Sam --> |"samtools sort"| Bam
     Bam --> |"samtools index"| Bai
     Bam --> |"pileup"| PP
+    Bam --> |"unmapped"| Pum
 ```
 
 The output files are saved, using the same `vial_XX/time_YY` nested folder structure in the `results/input_dir_basename` folder.
@@ -72,6 +74,7 @@ The output files are saved, using the same `vial_XX/time_YY` nested folder struc
 - `allele_counts.npz`:
 - `insertions.pkl.gz`:
 - `clips.pkl.gz`:
+- `unmapped.json`:
 
 **Input files organization**
 

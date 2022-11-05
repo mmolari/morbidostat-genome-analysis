@@ -151,6 +151,26 @@ process unmapped {
         """
 }
 
+process non_primary {
+    label 'q30m'
+    conda 'conda_envs/bioinfo_raw.yml'
+
+    publishDir "$output_dir/vial_${vial}/time_${timepoint}/pileup", mode: 'copy'
+
+    input:
+        tuple val(vial), val(timepoint), path("reads.sorted.bam")
+
+    output:
+        path("non_primary.csv"), optional: true
+
+    script:
+        """
+        python3 $baseDir/scripts/pileup_secondary_supplementary.py \
+            --bam reads.sorted.bam \
+            --df_out non_primary.csv \
+        """
+}
+
 workflow {
 
     // string corresponding to the first timepoint
@@ -185,4 +205,5 @@ workflow {
     // perform pileup
     pileup(sorted_reads)
     unmapped(sorted_reads)
+    non_primary(sorted_reads)
 }

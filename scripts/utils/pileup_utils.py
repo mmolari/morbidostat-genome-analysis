@@ -34,6 +34,22 @@ def ref_info(samfile):
     return refs
 
 
+def read_info_dict(read):
+    return {
+        "read": read.query_name,
+        "flag": read.flag,
+        "fwd": read.is_forward,
+        "ref_len": read.reference_length,
+        "qry_len": read.query_length,
+        "sec": read.is_secondary,
+        "suppl": read.is_supplementary,
+        "rs": read.reference_start,
+        "re": read.reference_end,
+        "qs": read.query_alignment_start,
+        "qe": read.query_alignment_end,
+    }
+
+
 # Note: the data structure for saving the pileup is a tensor, whose indices are:
 # [fwd/rev, bp, L] -->  count
 def ac_array(length):

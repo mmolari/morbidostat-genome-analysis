@@ -39,7 +39,7 @@ if __name__ == "__main__":
         assert len(refs) == 1, f"Only one reference allowed for pileup: {refs}"
         ref = refs[0]
 
-        for i, read in enumerate(sf):
+        for read in sf.fetch():
 
             # capture only unmapped reads
             if not read.is_unmapped:

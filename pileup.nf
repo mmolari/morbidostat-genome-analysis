@@ -67,8 +67,6 @@ process sort_mapped_reads {
     label 'q30m'
     conda "conda_envs/read_map.yml"
 
-    publishDir "$output_dir/vial_${vial}/time_${timepoint}/", mode: 'copy'
-
     input:
         tuple val(vial), val(timepoint), path("reads.sam")
 
@@ -94,7 +92,7 @@ process index_sorted_reads {
         tuple val(vial), val(timepoint), path("reads.sorted.bam")
 
     output:
-        path("reads.sorted.bam.bai")
+        tuple val(vial), val(timepoint), path("reads.sorted.bam"), path("reads.sorted.bam.bai")
 
     script:
         """
@@ -111,7 +109,8 @@ process pileup {
     publishDir "$output_dir/vial_${vial}/time_${timepoint}/", mode: 'copy'
 
     input:
-        tuple val(vial), val(timepoint), path("reads.sorted.bam")
+        tuple val(vial), val(timepoint), path("reads.sorted.bam"), path("reads.sorted.bam.bai")
+
 
     output:
         path("pileup/allele_counts.npz")
@@ -135,7 +134,8 @@ process unmapped {
     publishDir "$output_dir/vial_${vial}/time_${timepoint}/pileup", mode: 'copy'
 
     input:
-        tuple val(vial), val(timepoint), path("reads.sorted.bam")
+        tuple val(vial), val(timepoint), path("reads.sorted.bam"), path("reads.sorted.bam.bai")
+
 
     output:
         path("unmapped.csv"), optional: true
@@ -158,7 +158,8 @@ process non_primary {
     publishDir "$output_dir/vial_${vial}/time_${timepoint}/pileup", mode: 'copy'
 
     input:
-        tuple val(vial), val(timepoint), path("reads.sorted.bam")
+        tuple val(vial), val(timepoint), path("reads.sorted.bam"), path("reads.sorted.bam.bai")
+
 
     output:
         path("non_primary.csv"), optional: true
@@ -200,10 +201,10 @@ workflow {
     sorted_reads = map_reads(combined) | sort_mapped_reads
 
     // create index for sorted reads
-    index_sorted_reads(sorted_reads)
+    indexed_reads = index_sorted_reads(sorted_reads)
 
     // perform pileup
-    pileup(sorted_reads)
-    unmapped(sorted_reads)
-    non_primary(sorted_reads)
+    pileup(indexed_reads)
+    unmapped(indexed_reads)
+    non_primary(indexed_reads)
 }

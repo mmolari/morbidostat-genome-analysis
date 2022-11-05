@@ -35,8 +35,9 @@ flowchart TB
     R --> Rout
 
     Sam{{"reads.sam"}}
-    Bam(["reads.sorted.bam"])
-    Bai(["reads.sorted.bai"])
+    Bam{{"reads.sorted.bam"}}
+    Bai(["reads.sorted.bam
+    reads.sorted.bai"])
 
     Ggbk(["ref_genome.gbk"])
     Gfa(["ref_genome.fa"])
@@ -57,9 +58,10 @@ flowchart TB
 
     Sam --> |"samtools sort"| Bam
     Bam --> |"samtools index"| Bai
-    Bam --> |"pileup"| PP
-    Bam --> |"unmapped"| Pum
-    Bam --> |"non_primary"| Pss
+
+    Bai --> |"pileup"| PP
+    Bai --> |"unmapped"| Pum
+    Bai --> |"non_primary"| Pss
 ```
 
 The output files are saved, using the same `vial_XX/time_YY` nested folder structure in the `results/input_dir_basename` folder.

@@ -47,6 +47,7 @@ flowchart TB
         clips.pkl.gz"])
     Pum(["unmapped.csv
         unmapped.fastq.gz"])
+    Pss(["non_primary.csv"])
 
     Afa --> Sam
     R --> |"minimap2"| Sam
@@ -58,6 +59,7 @@ flowchart TB
     Bam --> |"samtools index"| Bai
     Bam --> |"pileup"| PP
     Bam --> |"unmapped"| Pum
+    Bam --> |"non_primary"| Pss
 ```
 
 The output files are saved, using the same `vial_XX/time_YY` nested folder structure in the `results/input_dir_basename` folder.
@@ -75,7 +77,8 @@ The output files are saved, using the same `vial_XX/time_YY` nested folder struc
 - `allele_counts.npz`:
 - `insertions.pkl.gz`:
 - `clips.pkl.gz`:
-- `unmapped.{csv,fastq.gz}`:
+- `unmapped.{csv,fastq.gz}`: dataframe with list of unmapped reads. It contains the read-id, length, flag and average quality. The fastq.gz file contains these reads.
+- `non_primary.csv`: dataframe with list of mapping info for reads that have *supplementary* or *secondary* mappings. The primary one is included too.
 
 **Input files organization**
 

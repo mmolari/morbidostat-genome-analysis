@@ -1,4 +1,5 @@
 import argparse
+import re
 
 import pandas as pd
 import numpy as np
@@ -13,8 +14,9 @@ def parse_args():
     reads over time.
     """
     )
-    parser.add_argument("--dfs", nargs="+", help="list of non_primary.csv dataframe")
-    parser.add_argument("--ts", type=int, nargs="+", help="list of timepoints")
+    parser.add_argument(
+        "--dfs", nargs="+", help="list of non_primary_t_*.csv dataframe"
+    )
     parser.add_argument("--pdf_sec", type=str, help="output pdf for secondary reads")
     parser.add_argument(
         "--pdf_suppl", type=str, help="output pdf for supplementary reads"
@@ -28,10 +30,8 @@ if __name__ == "__main__":
 
     # load dataframes
     dfs = [pd.read_csv(df) for df in args.dfs]
-    ts = args.ts
-
-    assert len(dfs) == len(ts)
-    N = len(ts)
+    ts = [int(re.match(r"non_primary_t_(\d+)\.csv", df).group(1)) for df in args.dfs]
+    N = len(args.dfs)
 
     # define dataframes as dictionary
     dfs = {t: df for t, df in zip(ts, dfs)}

@@ -48,14 +48,18 @@ if __name__ == "__main__":
     only_suppl = lambda df: df[df.suppl]
 
     # two histograms, one for supplementary and one for secondary reads
-    for only_f, fname in zip([only_sec, only_suppl], [args.pdf_sec, args.pdf_suppl]):
+    for only_f, fname, kind in zip(
+        [only_sec, only_suppl],
+        [args.pdf_sec, args.pdf_suppl],
+        ["secondary", "supplementary"],
+    ):
+
         fig, axs = plt.subplots(N, 1, sharex=True, figsize=(10, N * 2.3))
         for n, t in enumerate(ts):
             ax = axs[n]
-            df = dfs[t]
 
             # select only secondary or supplementary reads
-            df = only_f(df)
+            df = only_f(dfs[t])
 
             # histogram of read starts
             ax.hist(df.rs, bins=bins, color="k")
@@ -68,7 +72,7 @@ if __name__ == "__main__":
             ax.grid(alpha=0.1, which="minor")
 
             ax.set_title(f"t = {t}")
-            ax.set_ylabel("n. secondary reads")
+            ax.set_ylabel(f"n. {kind} reads")
 
         axs[-1].set_xlabel("reference position (bp)")
 

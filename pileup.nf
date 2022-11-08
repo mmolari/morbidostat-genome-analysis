@@ -168,49 +168,7 @@ process non_primary {
         """
         python3 $baseDir/scripts/pileup_secondary_supplementary.py \
             --bam reads.sorted.bam \
-            --df_out non_primary.csv \
-        """
-}
-
-
-process plot_non_primary_single {
-    label 'q30m'
-    conda 'conda_envs/bioinfo_raw.yml'
-
-    publishDir "figures/${input_dir.getName()}/vial_${vial}/non_primary", mode: 'copy'
-
-    input:
-        tuple val(vial), val(timepoint), path("non_primary.csv")
-
-    output:
-        path("*.pdf")
-
-    script:
-        """
-        python3 $baseDir/scripts/plot_secondary.py --df non_primary.csv \
-            --pdf secondary_t_${timepoint}.pdf
-        python3 $baseDir/scripts/plot_supplementary.py --df non_primary.csv \
-            --pdf supplementary_t_${timepoint}.pdf
-        """
-}
-
-process plot_non_primary_vs_time {
-    label 'q30m'
-    conda 'conda_envs/bioinfo_raw.yml'
-
-    publishDir "figures/${input_dir.getName()}/vial_${vial}/non_primary", mode: 'copy'
-
-    input:
-        tuple val(vial), val(timepoints), path("non_primary_*.csv")
-
-    output:
-        path("*.pdf")
-
-    script:
-        """
-        python3 $baseDir/scripts/plot_non_primary_vs_t.py \
-            --dfs non_primary_*.csv --ts ${timepoints.join(" ")} \
-            --pdf_sec secondary_vs_t.pdf --pdf_suppl supplementary_vs_t.pdf
+            --df_out non_primary.csv
         """
 }
 
@@ -255,13 +213,62 @@ workflow pileup_workflow {
         non_primary = df_non_primary
 }
 
+
+
+process plot_non_primary_single {
+    label 'q30m'
+    conda 'conda_envs/bioinfo_raw.yml'
+
+    publishDir "figures/${input_dir.getName()}/vial_${vial}/non_primary", mode: 'copy'
+
+    input:
+        tuple val(vial), val(timepoint), path("non_primary.csv")
+
+    output:
+        path("*.pdf")
+
+    script:
+        """
+        python3 $baseDir/scripts/plot_secondary.py --df non_primary.csv \
+            --pdf secondary_t_${timepoint}.pdf
+        python3 $baseDir/scripts/plot_supplementary.py --df non_primary.csv \
+            --pdf supplementary_t_${timepoint}.pdf
+        """
+}
+
+process plot_non_primary_vs_time {
+    label 'q30m'
+    conda 'conda_envs/bioinfo_raw.yml'
+
+    publishDir "figures/${input_dir.getName()}/vial_${vial}/non_primary", mode: 'copy'
+
+    input:
+        tuple val(vial), val(timepoints), path("non_primary_*.csv")
+
+    output:
+        path("*.pdf")
+
+    script:
+        """
+        python3 $baseDir/scripts/plot_non_primary_vs_t.py \
+            --dfs non_primary_*.csv --ts ${timepoints.join(" ")} \
+            --pdf_sec secondary_vs_t.pdf --pdf_suppl supplementary_vs_t.pdf
+        """
+}
+
 workflow plots_workflow {
     take:
         non_primary
     main:
-        //  plot location of secondary/supplementary reads, alone and histogram vs time
+        //  plot location of secondary/supplementary reads
         plot_non_primary_single(non_primary)
-        plot_non_primary_vs_time(non_primary.groupTuple())
+
+        // group dfs by vial (maintain order) and plot histograms vs time
+        non_primary
+            .map { v, t, df -> [v, [t, df]] }
+            .groupTuple()
+            .map { v, t_df -> [v, t_df*.getAt(0), t_df*.getAt(1)] }
+                | plot_non_primary_vs_time
 }
 
 workflow {

@@ -10,7 +10,7 @@ from matplotlib.ticker import MultipleLocator
 def parse_args():
     parser = argparse.ArgumentParser(
         description="""
-    Script that plots a matrix + histogram describing positions of secondary alignments.
+    Script that plots a matrix + histogram describing positions of suppl. alignments.
     """
     )
     parser.add_argument("--df", type=str, help="non_primary.csv dataframe")
@@ -62,18 +62,24 @@ if __name__ == "__main__":
 
     # Perform the plot
     fig, axs = plt.subplots(
-        2, 1, figsize=(10, 10), gridspec_kw={"height_ratios": [1, 0.1]}, sharex=True
+        2, 1, figsize=(9, 11), gridspec_kw={"height_ratios": [1, 0.1]}, sharex=True
     )
     ax = axs[0]
+
+    # scatter plot
     X, Y, C = [[l[i] for l in links] for i in range(3)]
     C = ["k" if c else "r" for c in C]
     ax.scatter(X, Y, alpha=0.03, color=C, rasterized=True)
+
     ax.axis("equal")
     ax.set_xlabel("primary read location (bp)")
-    ax.set_ylabel("secondary read location (bp)")
+    ax.set_ylabel("suppl. read location (bp)")
 
-    x, X = sdf.rs.min(), sdf.re.max()
-    ax.plot([x, X], [x, X], ls=":", color="gray")
+    # diagonal and ax limits
+    X = sdf.re.max()
+    ax.plot([0, X], [0, X], ls=":", color="gray")
+    ax.set_xlim(-X * 0.02, X * 1.02)
+    ax.set_ylim(-X * 0.02, X * 1.02)
 
     for k in [ax.xaxis, ax.yaxis]:
         k.set_major_locator(MultipleLocator(1e6))
@@ -89,7 +95,7 @@ if __name__ == "__main__":
     ax.grid(alpha=0.1, which="minor")
 
     ax.set_xlabel("primary read location (bp)")
-    ax.set_ylabel("n. secondary reads")
+    ax.set_ylabel("n. suppl. reads")
 
     plt.tight_layout()
     plt.savefig(args.pdf)

@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     # Perform the plot
     fig, axs = plt.subplots(
-        2, 1, figsize=(10, 10), gridspec_kw={"height_ratios": [1, 0.1]}, sharex=True
+        2, 1, figsize=(9, 11), gridspec_kw={"height_ratios": [1, 0.1]}, sharex=True
     )
     ax = axs[0]
     for x, y, c in links:
@@ -58,15 +58,18 @@ if __name__ == "__main__":
     ax.set_xlabel("primary read location (bp)")
     ax.set_ylabel("secondary read location (bp)")
 
+    # diagonal and ax limits
+    X = sdf.re.max()
+    ax.plot([0, X], [0, X], ls=":", color="gray")
+    ax.set_xlim(-X * 0.02, X * 1.02)
+    ax.set_ylim(-X * 0.02, X * 1.02)
+
     for k in [ax.xaxis, ax.yaxis]:
         k.set_major_locator(MultipleLocator(1e6))
         k.set_minor_locator(MultipleLocator(1e5))
 
     ax.grid(alpha=0.2, which="major")
     ax.grid(alpha=0.1, which="minor")
-
-    x, X = sdf.rs.min(), sdf.re.max()
-    ax.plot([x, X], [x, X], ls=":", color="gray")
 
     ax = axs[1]
     ax.hist(sdf.rs, bins=1000, color="k")

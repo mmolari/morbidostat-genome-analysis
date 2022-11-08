@@ -59,8 +59,8 @@ if __name__ == "__main__":
     ax.set_ylabel("secondary read location (bp)")
 
     # diagonal and ax limits
-    x, X = sdf.rs.min(), sdf.re.max()
-    ax.plot([x, X], [x, X], ls=":", color="gray")
+    X = sdf.re.max()
+    ax.plot([0, X], [0, X], ls=":", color="gray")
     ax.set_xlim(-X * 0.02, X * 1.02)
     ax.set_ylim(-X * 0.02, X * 1.02)
 

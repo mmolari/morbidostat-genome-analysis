@@ -236,6 +236,20 @@ process plot_non_primary_single {
         """
 }
 
+process rename_by_time {
+    label 'q30m'
+
+    input:
+        tuple val(vial), val(timepoint), path("non_primary.csv")
+    output:
+        tuple val(vial), path("non_primary_t_${timepoint}.csv")
+    script:
+        """
+        mv non_primary.csv non_primary_t_${timepoint}.csv
+        """
+
+}
+
 process plot_non_primary_vs_time {
     label 'q30m'
     conda 'conda_envs/bioinfo_raw.yml'
@@ -243,7 +257,7 @@ process plot_non_primary_vs_time {
     publishDir "figures/${input_dir.getName()}/vial_${vial}/non_primary", mode: 'copy'
 
     input:
-        tuple val(vial), val(timepoints), path("non_primary_*.csv")
+        tuple val(vial), path(dfs)
 
     output:
         path("*.pdf")
@@ -251,7 +265,7 @@ process plot_non_primary_vs_time {
     script:
         """
         python3 $baseDir/scripts/plot_non_primary_vs_t.py \
-            --dfs non_primary_*.csv --ts ${timepoints.join(" ")} \
+            --dfs non_primary_t_*.csv \
             --pdf_sec secondary_vs_t.pdf --pdf_suppl supplementary_vs_t.pdf
         """
 }
@@ -263,12 +277,9 @@ workflow plots_workflow {
         //  plot location of secondary/supplementary reads
         plot_non_primary_single(non_primary)
 
-        // group dfs by vial (maintain order) and plot histograms vs time
-        non_primary
-            .map { v, t, df -> [v, [t, df]] }
-            .groupTuple()
-            .map { v, t_df -> [v, t_df*.getAt(0), t_df*.getAt(1)] }
-                | plot_non_primary_vs_time
+
+        // group dfs by vial and plot histograms vs time
+        rename_by_time(non_primary).groupTuple() | plot_non_primary_vs_time
 }
 
 workflow {

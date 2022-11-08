@@ -80,10 +80,28 @@ The output files are saved, using the same `vial_XX/time_YY` nested folder struc
 - `insertions.pkl.gz`:
 - `clips.pkl.gz`:
 - `unmapped.{csv,fastq.gz}`: dataframe with list of unmapped reads. It contains the read-id, length, flag and average quality. The fastq.gz file contains these reads.
-- `non_primary.csv`: dataframe with list of mapping info for reads that have *supplementary* or *secondary* mappings. The primary one is included too.
+- `non_primary.csv`: dataframe with list of mapping info for reads that have *supplementary* or *secondary* mappings. The primary one is included too. The structure of this file is described [here](read_mapping.md).
+
 
 **Input files organization**
 
 **Output files organization**
 
 
+## Plots
+
+### workflow overview
+
+```mermaid
+flowchart TB
+
+    subgraph pileup
+    Pnp[["non_primary.csv"]]
+    end
+
+    Fnp(["{secondary,supplementary}_t_XX.pdf
+    {secondary,supplementary}_vs_t.pdf"])
+    Pnp --> |"plot_non_primary_{single,vs_t}"| Fnp 
+
+
+```

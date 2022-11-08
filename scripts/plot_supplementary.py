@@ -65,8 +65,9 @@ if __name__ == "__main__":
         2, 1, figsize=(10, 10), gridspec_kw={"height_ratios": [1, 0.1]}, sharex=True
     )
     ax = axs[0]
-    for x, y, s in links:
-        ax.scatter(x, y, alpha=0.03, color="k" if s else "r")
+    X, Y, C = [[l[i] for l in links] for i in range(3)]
+    C = ["k" if c else "r" for c in C]
+    ax.scatter(X, Y, alpha=0.03, color=C, rasterized=True)
     ax.axis("equal")
     ax.set_xlabel("primary read location (bp)")
     ax.set_ylabel("secondary read location (bp)")

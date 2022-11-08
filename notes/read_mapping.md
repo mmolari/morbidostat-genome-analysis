@@ -46,3 +46,20 @@ These can have flags:
 ### analysis
 
 In our pipeline information on secondary and supplementary alignments is stored in `pileup/non_primary.csv`. This is a dataframe with summary information on all reads that have secondary or supplementary alignments (also includes primary alignments).
+
+The dataframe has the following entries:
+- `read`: query id
+- `flag`: binary alignment flag
+- `fwd`: fwd/reverse alignment
+- `ref_len`: alignment length on reference
+- `qry_len`: alignment length on query
+- `sec`: secondary alignment
+- `suppl`: supplementary alignment
+- `rs/re`: positions of alignment start/end on the reference
+- `qs/qe`: positions of alignment start/end on the query
+
+|      | read                                 | flag | fwd   | ref_len | qry_len | sec   | suppl |      rs |      re |    qs |    qe |
+| ---: | :----------------------------------- | ---: | :---- | ------: | ------: | :---- | :---- | ------: | ------: | ----: | ----: |
+|    0 | 0007ee34-ec0e-4391-9ed2-e9df74b74982 |   16 | False |   11548 |   21596 | False | False |      34 |   11582 | 10098 | 21596 |
+|    1 | 0007ee34-ec0e-4391-9ed2-e9df74b74982 | 2064 | False |   10196 |   10065 | False | True  | 4633434 | 4643630 |     2 | 10067 |
+|    2 | 004ec71e-9817-420b-8911-f93d4cd691b9 |   16 | False |     675 |    1041 | False | False |  230117 |  230792 |   358 |  1041 |

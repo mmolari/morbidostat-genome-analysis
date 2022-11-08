@@ -259,8 +259,8 @@ workflow plots_workflow {
     take:
         non_primary
     main:
+        //  plot location of secondary/supplementary reads, alone and histogram vs time
         plot_non_primary_single(non_primary)
-        // [2, [2, 1, 5], [non_primary.csv, non_primary.csv, non_primary.csv]]
         plot_non_primary_vs_time(non_primary.groupTuple())
 }
 

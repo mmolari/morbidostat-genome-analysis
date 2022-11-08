@@ -168,7 +168,7 @@ process non_primary {
         """
         python3 $baseDir/scripts/pileup_secondary_supplementary.py \
             --bam reads.sorted.bam \
-            --df_out non_primary.csv \
+            --df_out non_primary.csv
         """
 }
 

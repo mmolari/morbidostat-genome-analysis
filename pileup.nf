@@ -162,13 +162,36 @@ process non_primary {
 
 
     output:
-        path("non_primary.csv"), optional: true
+        tuple val(vial), val(timepoint), path("non_primary.csv"), optional: true
 
     script:
         """
         python3 $baseDir/scripts/pileup_secondary_supplementary.py \
             --bam reads.sorted.bam \
             --df_out non_primary.csv \
+        """
+}
+
+
+process plot_non_primary_single {
+    label 'q30m'
+    conda 'conda_envs/bioinfo_raw.yml'
+    cache "deep"
+
+    publishDir "figures/${input_dir.getName()}/vial_${vial}/non_primary", mode: 'copy'
+
+    input:
+        tuple val(vial), val(timepoint), path("non_primary.csv")
+
+    output:
+        path("*.pdf")
+
+    script:
+        """
+        python3 $baseDir/scripts/plot_secondary.py --df non_primary.csv \
+            --pdf secondary_t_${timepoint}.pdf
+        python3 $baseDir/scripts/plot_supplementary.py --df non_primary.csv \
+            --pdf supplementary_t_${timepoint}.pdf
         """
 }
 
@@ -203,8 +226,13 @@ workflow {
     // create index for sorted reads
     indexed_reads = index_sorted_reads(sorted_reads)
 
-    // perform pileup
+    // perform pileup and list unmapped and non-primary reads
     pileup(indexed_reads)
     unmapped(indexed_reads)
-    non_primary(indexed_reads)
+    df_non_primary = non_primary(indexed_reads)
+
+    // plots
+    plot_non_primary_single(df_non_primary)
+    // [2, [2, 1, 5], [non_primary.csv, non_primary.csv, non_primary.csv]]
+    df_non_primary.groupTuple().view()
 }

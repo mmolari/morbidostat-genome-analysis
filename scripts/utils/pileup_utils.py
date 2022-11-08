@@ -35,7 +35,11 @@ def ref_info(samfile):
 
 
 def read_info_dict(read):
-    return {
+    cigar = read.cigartuples
+    Hstart = 0
+    if cigar[0][0] == 5:
+        Hstart = cigar[0][1]
+    res = {
         "read": read.query_name,
         "flag": read.flag,
         "fwd": read.is_forward,
@@ -45,9 +49,10 @@ def read_info_dict(read):
         "suppl": read.is_supplementary,
         "rs": read.reference_start,
         "re": read.reference_end,
-        "qs": read.query_alignment_start,
-        "qe": read.query_alignment_end,
+        "qs": read.query_alignment_start + Hstart,
+        "qe": read.query_alignment_end + Hstart,
     }
+    return res
 
 
 # Note: the data structure for saving the pileup is a tensor, whose indices are:

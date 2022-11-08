@@ -35,8 +35,9 @@ flowchart TB
     R --> Rout
 
     Sam{{"reads.sam"}}
-    Bam(["reads.sorted.bam"])
-    Bai(["reads.sorted.bai"])
+    Bam{{"reads.sorted.bam"}}
+    Bai(["reads.sorted.bam
+    reads.sorted.bai"])
 
     Ggbk(["ref_genome.gbk"])
     Gfa(["ref_genome.fa"])
@@ -45,6 +46,9 @@ flowchart TB
     PP(["allele_counts.npz
         insertions.pkl.gz
         clips.pkl.gz"])
+    Pum(["unmapped.csv
+        unmapped.fastq.gz"])
+    Pss(["non_primary.csv"])
 
     Afa --> Sam
     R --> |"minimap2"| Sam
@@ -54,7 +58,10 @@ flowchart TB
 
     Sam --> |"samtools sort"| Bam
     Bam --> |"samtools index"| Bai
-    Bam --> |"pileup"| PP
+
+    Bai --> |"pileup"| PP
+    Bai --> |"unmapped"| Pum
+    Bai --> |"non_primary"| Pss
 ```
 
 The output files are saved, using the same `vial_XX/time_YY` nested folder structure in the `results/input_dir_basename` folder.
@@ -72,9 +79,29 @@ The output files are saved, using the same `vial_XX/time_YY` nested folder struc
 - `allele_counts.npz`:
 - `insertions.pkl.gz`:
 - `clips.pkl.gz`:
+- `unmapped.{csv,fastq.gz}`: dataframe with list of unmapped reads. It contains the read-id, length, flag and average quality. The fastq.gz file contains these reads.
+- `non_primary.csv`: dataframe with list of mapping info for reads that have *supplementary* or *secondary* mappings. The primary one is included too. The structure of this file is described [here](read_mapping.md).
+
 
 **Input files organization**
 
 **Output files organization**
 
 
+## Plots
+
+### workflow overview
+
+```mermaid
+flowchart TB
+
+    subgraph pileup
+    Pnp[["non_primary.csv"]]
+    end
+
+    Fnp(["{secondary,supplementary}_t_XX.pdf
+    {secondary,supplementary}_vs_t.pdf"])
+    Pnp --> |"plot_non_primary_{single,vs_t}"| Fnp 
+
+
+```

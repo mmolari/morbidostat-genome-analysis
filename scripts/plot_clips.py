@@ -7,11 +7,11 @@ import re
 import pandas as pd
 
 try:
-    from plot_utils import *
-    from extract_stats_utils import safe_division
+    from utils.plot_utils import *
+    from utils.extract_stats_utils import safe_division
 except:
-    from .plot_utils import *
-    from .extract_stats_utils import safe_division
+    from .utils.plot_utils import *
+    from .utils.extract_stats_utils import safe_division
 
 
 # %%

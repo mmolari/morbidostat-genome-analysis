@@ -7,5 +7,6 @@
 /results
 /makefile
 /figures
+/playgrounds
 /conda_envs/conda
 __pycache__/

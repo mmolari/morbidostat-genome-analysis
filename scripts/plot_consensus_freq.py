@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 import re
 
 try:
-    from plot_utils import *
+    from utils.plot_utils import *
 except:
-    from .plot_utils import *
+    from .utils.plot_utils import *
 
 
 # %%

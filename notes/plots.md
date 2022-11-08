@@ -69,3 +69,13 @@ The produced figures are:
 - `clips_trajectories.pdf`: trajectories of number of clips for the selected positions. Notice that this is the total number and is not normalized by the total number of reads.
 
 The statistics for the number of clips for the relevant positions are saved in the `clips_selected_positions.csv` file, the structure is analogous to the csv file for insertions.
+
+## Secondary/Supplementary alignments
+
+These are all alignments for which multiple mappings exist between the query and reference genome.
+For **secondary** alignments, these are overlapping and might indicate **duplications**. For **supplementary** alignments they are instead usually non-overlapping and might indicate **inversions/genome rearrangements**.
+
+Figures for these alignments are stored in the `figures/vial_XX/non_primary` folder.
+- `secondary_t_YY.pdf`: similar to a dotplot, where lines represent regions of the genome that have overlapping mapping. Black/red lines correspond to same-direction/inverted reads.
+- `supplementary_t_YY.pdf`: scatter-plot, the x-y coordinates of each dot represent a link between two regions of the same query that map to region x and y of the reference in a chimeric read. Black/red dots correspond to same-direction/inverted reads. Only pairs of alignments that are non-overlapping on the query are selected.
+- `secondary_vs_t.pdf` and `supplementary_vs_t.pdf`: histogram of starting positions of supplementary and secondary reads for the different timepoints.

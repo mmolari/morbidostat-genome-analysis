@@ -260,9 +260,10 @@ workflow plots_workflow {
     take:
         non_primary
     main:
-        //  plot location of secondary/supplementary reads, alone and histogram vs time
+        //  plot location of secondary/supplementary reads
         plot_non_primary_single(non_primary)
 
+        // group dfs by vial (maintain order) and plot histograms vs time
         non_primary
             .map { v, t, df -> [v, [t, df]] }
             .groupTuple()

@@ -176,7 +176,6 @@ process non_primary {
 process plot_non_primary_single {
     label 'q30m'
     conda 'conda_envs/bioinfo_raw.yml'
-    cache "deep"
 
     publishDir "figures/${input_dir.getName()}/vial_${vial}/non_primary", mode: 'copy'
 
@@ -195,44 +194,77 @@ process plot_non_primary_single {
         """
 }
 
+process plot_non_primary_vs_time {
+    label 'q30m'
+    conda 'conda_envs/bioinfo_raw.yml'
+
+    publishDir "figures/${input_dir.getName()}/vial_${vial}/non_primary", mode: 'copy'
+
+    input:
+        tuple val(vial), val(timepoints), path("non_primary_*.csv")
+
+    output:
+        path("*.pdf")
+
+    script:
+        """
+        python3 $baseDir/scripts/plot_non_primary_vs_t.py \
+            --dfs non_primary_*.csv --ts ${timepoints.join(" ")} \
+            --pdf_sec secondary_vs_t.pdf --pdf_suppl supplementary_vs_t.pdf
+        """
+}
+
+workflow pileup_workflow {
+    main:
+
+        // string corresponding to the first timepoint
+        time_beg_id = params.time_beg as Integer
+
+        // reads input channel. Has items [vial, timepoint, reads]
+        reads = Channel.fromPath("${input_dir}/vial_*/time_*/reads.fastq.gz")
+            .map {it -> extract_vial_timepoint(it) + [reads:it]}
+        
+        // assembled genome input channel. Has items [vial, timepoint, fa, gbk]
+        // filtered so that only the first timepoint is kept
+        assembled_genomes = Channel.fromFilePairs("${input_dir}/vial_*/time_*/assembled_genome/*.{fna,gbk}")
+            .map {it -> it[1] } // only file pair
+            .map {it -> extract_vial_timepoint(it[0]) + [fna:it[0], gbk:it[1]] }
+            .filter {it -> it.timepoint == time_beg_id}
+
+
+        // combine genomes with reads, using vial as common key.
+        // Each set of reads is assigned the rescpective reference genome
+        combined = assembled_genomes.cross(reads) {it -> it.vial }
+            .map {it -> [it[0].vial, it[1].timepoint, it[0].fna, it[0].gbk, it[1].reads]}
+
+        // create symlinks of reference genomes and reads
+        create_symlinks(combined)
+        
+        // map and sort reads
+        sorted_reads = map_reads(combined) | sort_mapped_reads
+
+        // create index for sorted reads
+        indexed_reads = index_sorted_reads(sorted_reads)
+
+        // perform pileup and list unmapped and non-primary reads
+        pileup(indexed_reads)
+        unmapped(indexed_reads)
+        df_non_primary = non_primary(indexed_reads)
+
+    emit:
+        non_primary = df_non_primary
+}
+
+workflow plots_workflow {
+    take:
+        non_primary
+    main:
+        plot_non_primary_single(non_primary)
+        // [2, [2, 1, 5], [non_primary.csv, non_primary.csv, non_primary.csv]]
+        plot_non_primary_vs_time(non_primary.groupTuple())
+}
+
 workflow {
-
-    // string corresponding to the first timepoint
-    time_beg_id = params.time_beg as Integer
-
-    // reads input channel. Has items [vial, timepoint, reads]
-    reads = Channel.fromPath("${input_dir}/vial_*/time_*/reads.fastq.gz")
-        .map {it -> extract_vial_timepoint(it) + [reads:it]}
-    
-    // assembled genome input channel. Has items [vial, timepoint, fa, gbk]
-    // filtered so that only the first timepoint is kept
-    assembled_genomes = Channel.fromFilePairs("${input_dir}/vial_*/time_*/assembled_genome/*.{fna,gbk}")
-        .map {it -> it[1] } // only file pair
-        .map {it -> extract_vial_timepoint(it[0]) + [fna:it[0], gbk:it[1]] }
-        .filter {it -> it.timepoint == time_beg_id}
-
-
-    // combine genomes with reads, using vial as common key.
-    // Each set of reads is assigned the rescpective reference genome
-    combined = assembled_genomes.cross(reads) {it -> it.vial }
-        .map {it -> [it[0].vial, it[1].timepoint, it[0].fna, it[0].gbk, it[1].reads]}
-
-    // create symlinks of reference genomes and reads
-    create_symlinks(combined)
-    
-    // map and sort reads
-    sorted_reads = map_reads(combined) | sort_mapped_reads
-
-    // create index for sorted reads
-    indexed_reads = index_sorted_reads(sorted_reads)
-
-    // perform pileup and list unmapped and non-primary reads
-    pileup(indexed_reads)
-    unmapped(indexed_reads)
-    df_non_primary = non_primary(indexed_reads)
-
-    // plots
-    plot_non_primary_single(df_non_primary)
-    // [2, [2, 1, 5], [non_primary.csv, non_primary.csv, non_primary.csv]]
-    df_non_primary.groupTuple().view()
+    pp_out = pileup_workflow()
+    plots_workflow(pp_out.non_primary)
 }

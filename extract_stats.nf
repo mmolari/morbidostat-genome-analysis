@@ -7,7 +7,7 @@ assert input_dir.isDirectory()
 
 // function to extract vial number from folder name
 def extract_vial_n(fld) {
-    regex = /\/vial_(\d+)/
+    regex = /\/vial_(\d+)$/
     match = (fld =~ regex)[0]
     return [vial: match[1] as Integer, fld: fld]
 }

@@ -7,7 +7,7 @@ assert input_dir.isDirectory()
 
 // function to extract vial number from folder name
 def extract_vial_n(fld) {
-    regex = /\/vial_(\d+)/
+    regex = /\/vial_(\d+)$/
     match = (fld =~ regex)[0]
     return [vial: match[1] as Integer, fld: fld]
 }
@@ -15,7 +15,7 @@ def extract_vial_n(fld) {
 // process to perform plots
 process plot_script {
 
-    label 'q30m_1core'
+    label 'q30m_1core_highmem'
     conda 'conda_envs/bioinfo_raw.yml'
 
     publishDir "figures/${input_dir.getName()}/vial_${vial}/", mode: 'copy'

@@ -6,6 +6,8 @@ import seaborn as sns
 import pandas as pd
 import re
 
+from matplotlib.ticker import MultipleLocator
+
 try:
     from utils.plot_utils import *
 except:
@@ -98,6 +100,11 @@ if __name__ == "__main__":
     ax.set_xlabel("position on the genome (bp)")
     ax.set_ylabel(f"coverage ({step//1000} kbp mean) / mean coverage")
     ax.set_xlim(0, xm.max())
+    # set major and minor axis locator
+    ax.xaxis.set_major_locator(MultipleLocator(1e6))
+    ax.xaxis.set_minor_locator(MultipleLocator(1e5))
+    ax.grid(alpha=0.2, which="major")
+    ax.grid(alpha=0.1, which="minor")
     plt.tight_layout()
     savefig("coverage_distribution.pdf")
     show()

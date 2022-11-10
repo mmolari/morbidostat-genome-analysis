@@ -10,7 +10,7 @@ params.qual_min = 5
 params.clip_minL = 100
 
 // input files directory
-input_dir = file(params.input_fld)
+input_dir = file(params.input_fld.replaceAll('/$',''))
 assert input_dir.isDirectory()
 
 // results directory
@@ -128,7 +128,7 @@ process pileup {
 }
 
 process unmapped {
-    label 'q30m'
+    label 'q30m_1core'
     conda 'conda_envs/bioinfo_raw.yml'
 
     publishDir "$output_dir/vial_${vial}/time_${timepoint}/pileup", mode: 'copy'
@@ -152,7 +152,7 @@ process unmapped {
 }
 
 process non_primary {
-    label 'q30m'
+    label 'q30m_1core'
     conda 'conda_envs/bioinfo_raw.yml'
 
     publishDir "$output_dir/vial_${vial}/time_${timepoint}/pileup", mode: 'copy'
@@ -216,7 +216,7 @@ workflow pileup_workflow {
 
 
 process plot_non_primary_single {
-    label 'q30m'
+    label 'q30m_1core'
     conda 'conda_envs/bioinfo_raw.yml'
 
     publishDir "figures/${input_dir.getName()}/vial_${vial}/non_primary", mode: 'copy'
@@ -237,7 +237,7 @@ process plot_non_primary_single {
 }
 
 process rename_by_time {
-    label 'q30m'
+    label 'q30m_1core'
 
     input:
         tuple val(vial), val(timepoint), path("non_primary.csv")
@@ -251,7 +251,7 @@ process rename_by_time {
 }
 
 process plot_non_primary_vs_time {
-    label 'q30m'
+    label 'q30m_1core'
     conda 'conda_envs/bioinfo_raw.yml'
 
     publishDir "figures/${input_dir.getName()}/vial_${vial}/non_primary", mode: 'copy'

@@ -2,9 +2,12 @@ import numpy as np
 import re
 import argparse
 import pandas as pd
-import gzip
-import pickle as pkl
 import pathlib as pth
+
+from time import time
+
+from scipy.stats import fisher_exact
+import functools
 
 from Bio import SeqIO
 
@@ -207,6 +210,12 @@ class StatsTable:
         mask = self.df["type"] == kind
         return self.df[f"{pre_label}_{t}"][mask].to_numpy()
 
+    def L(self):
+        """
+        Size of the reference genome (n. of positions)
+        """
+        return self.df.shape[0] // 3
+
     def N(self, t, kind):
         """
         Returns the array of number of observations of type `kind` (tot, fwd, rev)
@@ -234,3 +243,90 @@ class StatsTable:
             trajs[kind] = [sdf[f"freq_{t}"] for t in self.times]
             Ns[kind] = [sdf[f"N_{t}"] for t in self.times]
         return trajs, Ns
+
+    def rank_trajs(self, p_threshold, n_threshold):
+        """
+        Rank trajectories by relevance, considering the highest difference between
+        maximum and minimum frequency. Optionally filters by threhsold N. of reads and
+        threshold p-value agreement betwen fwd and rev frequencies, using Fisher exact test.
+        Returns a list of ranks and a boolean exclusion mask.
+        """
+        L = self.L()
+
+        # store results
+        ranks, mask = np.zeros(L, dtype=float), np.zeros(L, dtype=bool)
+
+        # create matrix for frequency and time
+        Ts = self.times
+        Nf, Nr = [[self.N(t, k) for t in Ts] for k in ["fwd", "rev"]]
+        Ft, Ff, Fr = [[self.freq(t, k) for t in Ts] for k in ["tot", "fwd", "rev"]]
+
+        # transform in arrays of the form [L x T]
+        Nf, Nr, Ff, Fr, Ft = [np.vstack(x).T for x in [Nf, Nr, Ff, Fr, Ft]]
+
+        # evaluate R/L component
+        Nft = np.nan_to_num(Nf * Ff).round().astype(int)
+        Nff = Nf - Nft
+        Nrt = np.nan_to_num(Nr * Fr).round().astype(int)
+        Nrf = Nr - Nrt
+
+        # if not np.all(Nff >= 0):
+        #     print(np.argwhere(Nff < 0))
+        #     print(np.argwhere(Nrt < 0))
+
+        assert np.all(Nff >= 0)
+        assert np.all(Nrf >= 0)
+
+        t = time()
+        for l in range(L):
+            if l % 10000 == 0:
+                delta = time() - t
+                t = time()
+                print(f"{l=} | {test_traj.cache_info()}")
+                print(f"Delta t = {delta}")
+            ranks[l], mask[l] = rank_traj(
+                Nft[l],
+                Nff[l],
+                Nrt[l],
+                Nrf[l],
+                Ft[l],
+                p_thr=p_threshold,
+                n_thr=n_threshold,
+            )
+        return ranks, mask
+
+
+# @functools.lru_cache(maxsize=None)
+def rank_traj(Nft, Nff, Nrt, Nrf, Ft, p_thr, n_thr):
+
+    f_ord = np.argsort(Ft)
+
+    f_max = None
+    for i in f_ord[::-1]:
+        if test_traj(Nft[i], Nff[i], Nrt[i], Nrf[i], p_thr, n_thr):
+            f_max = Ft[i]
+            break
+    if f_max is None:
+        return 0, False
+
+    f_min = None
+    for i in f_ord:
+        if test_traj(Nft[i], Nff[i], Nrt[i], Nrf[i], p_thr, n_thr):
+            f_min = Ft[i]
+            break
+    if f_min is None:
+        raise NotImplementedError("This should never happen.")
+
+    return f_max - f_min, True
+
+
+@functools.lru_cache(maxsize=None)
+def test_traj(nft, nff, nrt, nrf, p_thr, n_thr):
+    accept = True
+    if n_thr is not None:
+        accept &= nft + nff >= n_thr
+        accept &= nrt + nrf >= n_thr
+    if p_thr is not None:
+        _, p = fisher_exact([[nft, nff], [nrt, nrf]])
+        accept &= p >= p_thr
+    return accept

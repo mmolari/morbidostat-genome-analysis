@@ -10,83 +10,6 @@ try:
 except:
     from .utils.plot_utils import *
 
-
-# %%
-
-
-def plot_2_pval_2dhist(pval_f, pval_r, p_thr):
-    """
-    Plot the joint distribution of binomial p-values for the forward and
-    reverse reads, together with the marginal distributions. The red line
-    represents the acceptance threshold below which positions are discarded.
-    """
-
-    fig, axs = plt.subplot_mosaic(
-        """
-        B.
-        AC
-        """,
-        figsize=(8, 8),
-        gridspec_kw={
-            "height_ratios": [0.4, 1.0],
-            "width_ratios": [1.0, 0.4],
-        },
-    )
-
-    bins = np.linspace(0, 1, 50)
-    norm = mpl.colors.LogNorm(vmin=0.1)
-
-    ax = axs["A"]
-    ax.hist2d(pval_f, pval_r, bins=bins, norm=norm, cmap="Blues")
-    x = np.linspace(p_thr, 1, 50)
-    y = p_thr / x
-    ax.plot(x, y, color="red")
-    ax.set_xlabel("p-value forward")
-    ax.set_ylabel("p-value reverse")
-
-    ax = axs["B"]
-    ax.hist(pval_f, bins=bins)
-    ax.set_yscale("log")
-    ax.set_xlim(0, 1)
-    ax.set_ylabel("n. sites")
-
-    ax = axs["C"]
-    ax.hist(pval_r, bins=bins, orientation="horizontal")
-    ax.set_xscale("log")
-    ax.set_ylim(0, 1)
-    ax.set_xlabel("n. sites")
-
-    return fig, ax
-
-
-def plot_3_pval_deltafreq(pval_tot, rank, Ne, N_thr, p_thr):
-    """2D histogram of the delta-frequency vs the total p-value, separated in positions
-    with more or less than `N_thr` counts."""
-
-    mask = Ne["tot"] >= N_thr
-
-    bins = [np.linspace(-1, 1, 50), np.linspace(0, 1, 25)]
-    norm = mpl.colors.LogNorm(vmin=0.1)
-    fig, axs = plt.subplots(1, 2, figsize=(10, 4))
-    for i, m in enumerate([mask, ~mask]):
-        ax = axs[i]
-        s = ax.hist2d(
-            rank[m],
-            pval_tot[m],
-            bins=bins,
-            norm=norm,
-            cmap="Blues",
-        )
-        ax.axhline(p_thr, c="gray", ls="--")
-        ax.set_xlabel("consensus frequency difference (final-initial)")
-        ax.set_ylabel("p-value product (p-fwd*p-rev)")
-        plt.colorbar(s[3], ax=ax, label="N. sites")
-    axs[0].set_title(f"N $\geq$ {N_thr}")
-    axs[1].set_title(f"N < {N_thr}")
-
-    return fig, axs
-
-
 # %%
 
 if __name__ == "__main__":
@@ -104,11 +27,10 @@ if __name__ == "__main__":
 
     # %%
 
-    # data_path = pth.Path("../results/2022-05-11_RT-Tol-Res/vial_01")
+    # data_path = pth.Path("../results/2022-amoxicilin/vial_7")
     # savefig = lambda x: None
     # show = plt.show
     # vprint = print
-    # fig_path = pth.Path("../figures/2022-05-11_RT-Tol-Res/vial_01")
 
     # get vial number
     vial = re.search("vial_(\d+)/?$", str(data_path)).groups()[0]
@@ -146,43 +68,17 @@ if __name__ == "__main__":
     # are compatible with the average frequency
     vprint(f"selecting positions with high delta frequency")
 
-    # binomial
-    pval_f = binomial_pvals(Fe["fwd"], Ne["fwd"], Fe["tot"])
-    pval_r = binomial_pvals(Fe["rev"], Ne["rev"], Fe["tot"])
-
     p_thr = 0.05
     N_thr = 10
-    pval_tot = pval_f * pval_r
-    rank = Fe["tot"] - Fb["tot"]
-    keep = pval_tot >= p_thr
-    keep &= Ne["tot"] >= N_thr
+
+    rank, keep = st.rank_trajs(p_threshold=p_thr, n_threshold=N_thr)
+
     Nkeep = 100
 
     # select top positions and have their ranking
     S_pos, S_rank = select_top_positions(
-        ranking=rank, Nmax=Nkeep, mask=keep, inverse=True
+        ranking=rank, Nmax=Nkeep, mask=keep, inverse=False
     )
-
-    # %%
-    # ~~~~~~~~~~~~ PLOT 2 ~~~~~~~~~~~~
-    # p-values forward-reverse 2d histogram
-    vprint(f"preparing plot 2: p-value joint distribution")
-
-    fig, axs = plot_2_pval_2dhist(pval_f, pval_r, p_thr)
-    plt.tight_layout()
-    savefig("consensus_pvalue_distribution.pdf")
-    show()
-
-    # %%
-
-    # ~~~~~~~~~~~~ PLOT 3 ~~~~~~~~~~~~
-    # p-value vs delta frequency for N above or below threshold
-    vprint(f"preparing plot 3: p-value vs delta frequency distribution")
-
-    fig, axs = plot_3_pval_deltafreq(pval_tot, rank, Ne, N_thr, p_thr)
-    plt.tight_layout()
-    savefig("consensus_pvalue_vs_freqdiff.pdf")
-    show()
 
     # %%
     # ~~~~~~~~~~~~ PLOT 4 ~~~~~~~~~~~~
@@ -207,14 +103,9 @@ if __name__ == "__main__":
     rank_dict = {}
     for p, r in zip(S_pos, S_rank):
         rank_dict[p] = r
-        pval_dict[(p, "fwd")] = pval_f[p]
-        pval_dict[(p, "rev")] = pval_r[p]
-        pval_dict[(p, "tot")] = pval_f[p] * pval_r[p]
-
     # select relevant positions and add columns
     mask = st.df["position"].isin(S_pos)
     sdf = st.df[mask].copy()
-    sdf["pval"] = sdf.apply(lambda x: pval_dict[(x.position, x.type)], axis=1)
     sdf["rank"] = sdf.apply(lambda x: rank_dict[x.position], axis=1)
 
     # make position 1-based

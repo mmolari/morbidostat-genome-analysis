@@ -2,7 +2,7 @@
 params.input_fld = "results/test_dataset"
 
 // input files directory
-input_dir = file(params.input_fld)
+input_dir = file(params.input_fld.replaceAll('/$',''))
 assert input_dir.isDirectory()
 
 // function to extract vial number from folder name

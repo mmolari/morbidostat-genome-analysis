@@ -10,7 +10,7 @@ params.qual_min = 5
 params.clip_minL = 100
 
 // input files directory
-input_dir = file(params.input_fld)
+input_dir = file(params.input_fld.replaceAll('/$',''))
 assert input_dir.isDirectory()
 
 // results directory

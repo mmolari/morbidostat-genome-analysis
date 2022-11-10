@@ -101,6 +101,8 @@ if __name__ == "__main__":
     # add columns to the dataframe: pvalues and delta frequency
     pval_dict = {}
     rank_dict = {}
+    for p, r in zip(S_pos, S_rank):
+        rank_dict[p] = r
     # select relevant positions and add columns
     mask = st.df["position"].isin(S_pos)
     sdf = st.df[mask].copy()

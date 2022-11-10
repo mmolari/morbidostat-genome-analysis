@@ -6,6 +6,8 @@ import re
 
 import pandas as pd
 
+from matplotlib.ticker import MultipleLocator
+
 try:
     from utils.plot_utils import *
     from utils.extract_stats_utils import safe_division
@@ -185,6 +187,11 @@ def plot_n_clips_genome(dfs, step=5000):
         ytl = [int(y) for y in ax.get_yticks()]
         ax.set_yticks(ytl)
         ax.set_yticklabels([str(y).lstrip("-") for y in ytl])
+
+        ax.xaxis.set_major_locator(MultipleLocator(1e6))
+        ax.xaxis.set_minor_locator(MultipleLocator(1e5))
+        ax.grid(alpha=0.2, which="major")
+        ax.grid(alpha=0.1, which="minor")
 
     return fig, axs
 

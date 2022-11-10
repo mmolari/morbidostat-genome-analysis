@@ -6,6 +6,9 @@ import re
 
 import pandas as pd
 
+from matplotlib.ticker import MultipleLocator
+
+
 try:
     from utils.plot_utils import *
     from utils.extract_stats_utils import safe_division
@@ -179,6 +182,12 @@ def plot_n_ins_genome(df, step=5000):
     ax.set_xlabel("genome position (bp)")
     ax.set_ylabel(f"avg. n. inserted bp per {step//1000} kbp")
     ax.grid(alpha=0.3)
+
+    for ax in axs:
+        ax.xaxis.set_major_locator(MultipleLocator(1e6))
+        ax.xaxis.set_minor_locator(MultipleLocator(1e5))
+        ax.grid(alpha=0.2, which="major")
+        ax.grid(alpha=0.1, which="minor")
 
     return fig, axs
 

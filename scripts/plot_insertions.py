@@ -152,38 +152,55 @@ def plot_joint_distr(df):
     return fig, axs
 
 
-def plot_n_ins_genome(df, step=5000):
-    """Plots:
-    1) the number of insertions in forward and reverse reads over
-        (step) bp windows.
-    2) the average number of inserted basepairs over (step) bp windows. It weights
-        the insertion length by insertion frequency."""
+def plot_n_ins_genome(dfs, stat, step=5000):
+    """
+    depending on the value of `stats`, plots:
+    `N`: the number of insertions in forward and reverse reads over
+         a window of size `step` bps.
+    `L`: the total length of insertions over all the reads on a window
+        of size `step` bps.
+    """
 
-    fig, axs = plt.subplots(2, 1, figsize=(12, 8))
+    Ts = sorted(dfs.keys())
+    NT = len(Ts)
 
-    ax = axs[0]
-    sf, sr = df["If"], df["Ir"]
-    M = max([sf.index.max(), sr.index.max()])
-    bins = np.arange(0, M + step, step)
-    for s, l in zip([sf, sr], ["fwd", "rev"]):
-        ax.hist(s.index, weights=s.values, bins=bins, histtype="step", label=l)
-    ax.legend()
-    ax.set_xlim(bins[0], bins[-1])
-    ax.set_xlabel("genome position (bp)")
-    ax.set_ylabel(f"n. insertions per {step//1000} kbp")
-    ax.grid(alpha=0.3)
+    fig, axs = plt.subplots(NT, 1, figsize=(12, NT * 4), sharex=True)
 
-    ax = axs[1]
-    s = df["Lt"]
-    M = s.index.max()
-    bins = np.arange(0, M + step, step)
-    ax.hist(s.index, weights=s.values * df["Ft"], bins=bins, histtype="step", color="k")
-    ax.set_xlim(bins[0], bins[-1])
-    ax.set_xlabel("genome position (bp)")
-    ax.set_ylabel(f"avg. n. inserted bp per {step//1000} kbp")
-    ax.grid(alpha=0.3)
+    for nt, t in enumerate(Ts):
+        ax = axs[nt]
+        df = dfs[t]
+        if stat == "N":
+            sf, sr = df["If"], df["Ir"]
+        elif stat == "L":
+            sf = (df["Ff"] * df["Lf"]).fillna(0)
+            sr = (df["Fr"] * df["Lr"]).fillna(0)
+        else:
+            raise ValueError("stat must be either 'N' or 'L'")
+        M = max([sf.index.max(), sr.index.max()])
+        bins = np.arange(0, M + step, step)
+        for s, l in zip([sf, sr], ["fwd", "rev"]):
+            g = 1 if l == "fwd" else -1
+            ax.hist(
+                s.index,
+                weights=s.values * g,
+                bins=bins,
+                histtype="step",
+                label=l,
+                rasterized=True,
+            )
+        ax.legend()
+        ax.set_xlim(bins[0] - step * 5, bins[-1] + step * 5)
+        ax.set_xlabel("genome position (bp)")
+        if stat == "N":
+            ax.set_ylabel(f"n. insertions per {step} bp")
+        elif stat == "L":
+            ax.set_ylabel(f"avg. bp inserted per {step} bp")
+        ax.grid(alpha=0.3)
+        ax.set_title(f"t = {t}")
+        ytl = [int(y) for y in ax.get_yticks()]
+        ax.set_yticks(ytl)
+        ax.set_yticklabels([str(y).lstrip("-") for y in ytl])
 
-    for ax in axs:
         ax.xaxis.set_major_locator(MultipleLocator(1e6))
         ax.xaxis.set_minor_locator(MultipleLocator(1e5))
         ax.grid(alpha=0.2, which="major")
@@ -292,12 +309,16 @@ if __name__ == "__main__":
     show()
 
     # %%
-    # histogram of number of insertions
+    # histogram of number and length of insertions vs genome
 
-    df = dfs[Tf]
-    fig, axs = plot_n_ins_genome(df)
+    fig, axs = plot_n_ins_genome(dfs, stat="N", step=100)
     plt.tight_layout()
-    savefig("insertions_vs_genome.pdf")
+    savefig("insertions_vs_genome_N.pdf")
+    show()
+
+    fig, axs = plot_n_ins_genome(dfs, stat="L", step=100)
+    plt.tight_layout()
+    savefig("insertions_vs_genome_L.pdf")
     show()
 
     # %%

@@ -7,6 +7,9 @@ import re
 import pandas as pd
 
 from matplotlib.ticker import MultipleLocator
+from functools import cache
+from scipy.stats import fisher_exact
+from collections import defaultdict
 
 
 try:
@@ -209,6 +212,73 @@ def plot_n_ins_genome(dfs, stat, step=5000):
     return fig, axs
 
 
+@cache
+def trust_trajectory(Tf, Nf, Tr, Nr, p_min=0.05, Nmin=10):
+    """Performs an exact fisher thest on a single trajectory timepoint to
+    decide whether to trust it. This function is cached.
+    Returns a pair (True/False, Freq. true)"""
+    if (Nf < Nmin) or (Nr < Nmin):
+        return False, None
+    Ff, Fr = Nf - Tf, Nr - Tr
+    _, p = fisher_exact([[Tf, Ff], [Tr, Fr]])
+    if p < p_min:
+        return False, None
+    return True, (Tf + Tr) / (Nf + Nr)
+
+
+def complete_noins_trajs(trajs, Ts, pos, st, Nmin):
+
+    for nt, t in enumerate(Ts):
+        for kind in ["fwd", "rev"]:
+            mask = trajs[nt, :] == 0
+            Ns = st.N(t, kind=kind)[pos]
+            mask &= Ns < Nmin
+            trajs[nt, mask] = np.nan
+    return trajs
+
+
+def select_trajs(dfs, st, Nselect, Nmin, p_min):
+    """Given the dictionary of dataframes, selects relevant trajectories"""
+    Ts = list(sorted(dfs.keys()))
+    Nt = len(Ts)
+    trajs = defaultdict(lambda: np.zeros(Nt))
+
+    positions = np.sort(
+        np.unique(np.concatenate([list(df.index) for df in dfs.values()]))
+    )
+    Np = len(positions)
+    pos_idxs = {p: i for i, p in enumerate(positions)}
+
+    trajs = np.zeros((Nt, Np))
+
+    for nt, t in enumerate(Ts):
+        print(f"processing time {t}")
+        df = dfs[t]
+        for pos, row in df.iterrows():
+            if pos % 100000 == 0:
+                print(trust_trajectory.cache_info())
+            Nf, Nr, If, Ir = row[["Nf", "Nr", "If", "Ir"]]
+            trust, F = trust_trajectory(If, Nf, Ir, Nr, p_min, Nmin)
+            pos_i = pos_idxs[pos]
+            if trust:
+                trajs[nt, pos_i] = F
+            else:
+                trajs[nt, pos_i] = np.nan
+
+    trajs = complete_noins_trajs(trajs, Ts, positions, st, Nmin)
+
+    trajs = trajs.T
+    ranks = np.nanmax(trajs, axis=1) - np.nanmin(trajs, axis=1)
+
+    mask = ~np.isnan(ranks)
+    R = ranks[mask]
+    P = positions[mask]
+    order = np.argsort(R)[::-1]
+
+    selected_pos = P[order[:Nselect]]
+    return selected_pos
+
+
 def plot_trajectories(sel_df, Ts, threshold=5, Nx=3):
     """Plot the frequency trajectories (n. insertions / tot n. reads) for the selected
     trajectories. Black lines represent the total frequency, and blue and orange
@@ -268,11 +338,11 @@ if __name__ == "__main__":
     # %%
 
     # debug purpose
-    # data_path = pth.Path("../results/2022-05-11_RT-Tol-Res/vial_04")
-    # savefig = lambda x: None
-    # show = plt.show
-    # vprint = print
-    # fig_path = pth.Path("../figures/2022-05-11_RT-Tol-Res/vial_04")
+    data_path = pth.Path("../results/2022-amoxicilin/vial_7")
+    savefig = lambda x: None
+    show = plt.show
+    vprint = print
+    fig_path = pth.Path("../figures/2022-amoxicilin/vial_7")
 
     # %%
 
@@ -281,7 +351,6 @@ if __name__ == "__main__":
     print(f"preparing insertion plots for vial {vial}")
 
     # load insertions and consensus frequency
-    insertions = load_insertions(data_path)
     st_path = data_path / "stats" / "stats_table_reference_freq.pkl.gz"
     st = StatsTable.load(st_path)  # consensus frequency for each site
     Ts = np.sort(st.times)  # list of times
@@ -289,7 +358,7 @@ if __name__ == "__main__":
 
     # %%
     # build insertion dataframe
-    dfs = build_insertion_dataframes(insertions, st)
+    dfs = build_insertion_dataframes(load_insertions(data_path), st)
 
     # %%
     # plot histogram of N. insertions, insertion frequency, insertion length
@@ -324,35 +393,15 @@ if __name__ == "__main__":
     # %%
     # select relevant positions
 
-    df = dfs[Tf]
-
-    # For most of the selected trajectories, exclude positions having no
-    # insertions on forward or reverse reads
-    mask = (df["If"] > 0) & (df["Ir"] > 0)
-
-    selected_pos = []
-    NposI, NposF, NposL = 40, 40, 20  # number of max selected positions (may coincide)
-
-    # 1) select positions with highest total number of insertions
-    selected_pos += list(df["It"].sort_values(ascending=False)[:3].index)
-    selected_pos += list(df[mask]["It"].sort_values(ascending=False)[:NposI].index)
-
-    # 2) select position with high insertions frequency in both fwd and reverse (max fwd + rev)
-    selected_pos += list(df["Ft"].sort_values(ascending=False)[:3].index)
-    selected_pos += list(df[mask]["Ft"].sort_values(ascending=False)[:NposF].index)
-
-    # 3) select positions with long insertions
-    selected_pos += list(df["Lt"].sort_values(ascending=False)[:3].index)
-    selected_pos += list(df[mask]["Lt"].sort_values(ascending=False)[:NposL].index)
-
-    selected_pos = np.sort(np.unique(selected_pos))
+    Nselect = 80
+    Nmin = 8
+    p_min = 0.05
+    selected_pos = select_trajs(dfs, st, Nselect, Nmin, p_min)
 
     # %%
     # create dataframe with only selected positions
-    sel_df = dfs[Tf].loc[selected_pos].add_suffix(f"_{Tf}")
+    sel_df = pd.DataFrame([], index=selected_pos)
     for t in Ts[::-1]:
-        if t == Tf:
-            continue
         sel_df = sel_df.join(dfs[t].add_suffix(f"_{t}"), how="left")
     sel_df = sel_df.fillna(0)
     tp = lambda k: float if k.startswith("F") else int

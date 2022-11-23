@@ -227,7 +227,11 @@ def trust_trajectory(Tf, Nf, Tr, Nr, p_min=0.05, Nmin=10):
 
 
 def complete_noins_trajs(trajs, Ts, pos, st, Nmin):
-
+    """Given the trajectory frequency matrix, it completes tests for the positions with
+    no insertions. These are the positions with zero frequency. For these positions the
+    number of reads is extracted from the stats-table, and the function checks which sites
+    have above-threshold number of reads (N >= Nmin). The rest of the frequencies are set
+    to np.nan."""
     for nt, t in enumerate(Ts):
         for kind in ["fwd", "rev"]:
             mask = trajs[nt, :] == 0
@@ -237,44 +241,63 @@ def complete_noins_trajs(trajs, Ts, pos, st, Nmin):
     return trajs
 
 
-def select_trajs(dfs, st, Nselect, Nmin, p_min):
-    """Given the dictionary of dataframes, selects relevant trajectories"""
+def select_relevant_positions(dfs, st, Nselect, Nmin, p_min):
+    """Given the dictionary of dataframes, selects positions with maximal insertion
+    frequency variation (max - min over timepoints).
+    The variation is only considered over timepoints with more than Nmin reads in the pileup,
+    and where a fisher exact test on the fwd/rev insertion frequency returns a
+    p value > threshold.
+    Returns a list of positions."""
+
+    # sorted list of timepoints
     Ts = list(sorted(dfs.keys()))
     Nt = len(Ts)
-    trajs = defaultdict(lambda: np.zeros(Nt))
 
+    # list of all positions in which an insertion is detected at least once in a timepoint
     positions = np.sort(
         np.unique(np.concatenate([list(df.index) for df in dfs.values()]))
     )
     Np = len(positions)
-    pos_idxs = {p: i for i, p in enumerate(positions)}
 
+    # create empty frequency trajectory matrix
     trajs = np.zeros((Nt, Np))
+
+    # dictionary position -> index in thrajectory matrix
+    pos_idxs = {p: i for i, p in enumerate(positions)}
 
     for nt, t in enumerate(Ts):
         print(f"processing time {t}")
         df = dfs[t]
+
         for pos, row in df.iterrows():
+
             if pos % 100000 == 0:
                 print(trust_trajectory.cache_info())
+
+            # fisher test on whether to trust the trajectory. Cached.
             Nf, Nr, If, Ir = row[["Nf", "Nr", "If", "Ir"]]
             trust, F = trust_trajectory(If, Nf, Ir, Nr, p_min, Nmin)
+
             pos_i = pos_idxs[pos]
             if trust:
                 trajs[nt, pos_i] = F
             else:
                 trajs[nt, pos_i] = np.nan
 
+    # check time-position pairs without insertions.
     trajs = complete_noins_trajs(trajs, Ts, positions, st, Nmin)
 
+    # rank trajectories based on max-min trusted frequencies
     trajs = trajs.T
     ranks = np.nanmax(trajs, axis=1) - np.nanmin(trajs, axis=1)
 
+    # mask out positions with no trusted point and sort them
     mask = ~np.isnan(ranks)
     R = ranks[mask]
     P = positions[mask]
     order = np.argsort(R)[::-1]
 
+    # select top ones
     selected_pos = P[order[:Nselect]]
     return selected_pos
 
@@ -393,10 +416,10 @@ if __name__ == "__main__":
     # %%
     # select relevant positions
 
-    Nselect = 80
+    Nselect = 81
     Nmin = 8
     p_min = 0.05
-    selected_pos = select_trajs(dfs, st, Nselect, Nmin, p_min)
+    selected_pos = select_relevant_positions(dfs, st, Nselect, Nmin, p_min)
 
     # %%
     # create dataframe with only selected positions

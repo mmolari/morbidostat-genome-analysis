@@ -42,7 +42,7 @@ The script `plot_gaps.py` performs a similar analysis to the one for the *consen
 
 Two plots are different from consensus plots:
 - `gap_vs_genome.pdf`: cumulative gap frequency over a window of 100bps, stratified by time and fwd/rev reads. Gaps that form over time should be visible as an increase in this frequency.
-
+- `gap_freq_trajs.pdf`: this is similar to the frequency trajectory plot for the consensus frequency, with the difference that adjacent high-frequency-change trajectories are grouped together. This makes so that big gaps (that would otherwise occupy the full set of selected trajectories) are instead grouped in a few plots with correlated frequency trajectories. for this plot we indicate the position interval on top.
 
 
 ## Insertions

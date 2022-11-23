@@ -85,10 +85,6 @@ The output files are saved, using the same `vial_XX/time_YY` nested folder struc
 - `non_primary.csv`: dataframe with list of mapping info for reads that have *supplementary* or *secondary* mappings. The primary one is included too. The structure of this file is described [here](read_mapping.md).
 
 
-**Input files organization**
-
-**Output files organization**
-
 ## Extract Stats
 
 ### input/output files
@@ -103,18 +99,4 @@ The output files are saved, using the same `vial_XX/time_YY` nested folder struc
 
 ## Plots
 
-### workflow overview
-
-```mermaid
-flowchart TB
-
-    subgraph pileup
-    Pnp[["non_primary.csv"]]
-    end
-
-    Fnp(["{secondary,supplementary}_t_XX.pdf
-    {secondary,supplementary}_vs_t.pdf"])
-    Pnp --> |"plot_non_primary_{single,vs_t}"| Fnp 
-
-
-```
+produced plots are described in `plots.md`.

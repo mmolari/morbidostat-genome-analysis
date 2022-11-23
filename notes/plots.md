@@ -1,6 +1,6 @@
 # Plot description
 
-This file contains a succint descriptions of the plot and files produced by the `plot.nf` workflow. For each plotting script we give a short description of the figures and files produced. Note that the analysis is mainly based on the pileup and that it only contains reads of sufficient quality.
+This file contains a succint descriptions of the plot and files produced by the `plot.nf` workflow (and `pileup.nf` for duplicated/secondary mappings). For each plotting script we give a short description of the figures and files produced. Note that the analysis is mainly based on the pileup and that it only contains reads of sufficient quality.
 
 ## Coverage
 
@@ -55,7 +55,7 @@ The produced figures are:
 - `insertions_vs_genome_{L,N}.pdf`:
     - n. of insertions on a window of 100 kbp size, stratified by timepoint and fwd/rev reads.
     - same as previous, but instead of n. of reads it produces an histogram of average insertion length (L * insertion freq).
-- `insertions_trajectories.pdf`: plots the insertion frequency trajectory for at different timepoints for few selected positions. The meaning of markers and colors is similar to the one for the consens frequency trajectories. Positions are selected based on the (max - min) insertion frequency over time. Only points with not less than 8 insertions are considered, and points where a fisher exact test on the number of fwd vs rev insertions returns a p-value greater than 5%.
+- `insertions_trajectories.pdf`: plots the insertion frequency trajectory for at different timepoints for few selected positions. The meaning of markers and colors is similar to the one for the consens frequency trajectories. Positions are selected based on the (max - min) insertion frequency over time. Only points with sequencing depth not less than 8 are considered, and points where a fisher exact test on the number of fwd vs rev insertions returns a p-value greater than 5%.
 
 The relevant positions are recorded in `insertions_selected_positions.csv`. This is similar to the csv file for the consensus frequency, with the addition of the `L` columns storing the average insertion length.
 
@@ -68,7 +68,7 @@ The produced figures are:
 - `clip_distributions.pdf`: distributions of n. of clips per site, clip frequency and average length of soft-clips for the different timepoints.
 - `clip_joint_dist_final_time.pdf`: joint distributions of the three above quantities for forward and reverse reads, evaluated at the final timepoint.
 - `clips_vs_genome.pdf`: distributions of n. of clips in forward and reverse reads over intervals spanning 5 kbps. One distribution for timepoint.
-- `clips_trajectories.pdf`: trajectories of number of clips for the selected positions. Notice that this is the total number and is not normalized by the total number of reads.
+- `clips_trajectories.pdf`: trajectories of number of clips for few selected positions. Notice that this is the total number of clips and is not normalized by the total number of reads. Selected trajectories are the ones where the difference between maximum and minimum number of clips over time is the greatest.
 
 The statistics for the number of clips for the relevant positions are saved in the `clips_selected_positions.csv` file, the structure is analogous to the csv file for insertions.
 

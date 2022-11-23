@@ -157,11 +157,9 @@ def plot_joint_distr(df):
 
 def plot_n_ins_genome(dfs, stat, step=5000):
     """
-    depending on the value of `stats`, plots:
-    `N`: the number of insertions in forward and reverse reads over
-         a window of size `step` bps.
-    `L`: the total length of insertions over all the reads on a window
-        of size `step` bps.
+    depending on the value of `stats`, plots for the different timepoints and for fwd/rev reads:
+    `N`: the number of insertions over a window of size `step` bps.
+    `L`: the length of insertions (L*freq) over all the reads on a window of size `step` bps.
     """
 
     Ts = sorted(dfs.keys())
@@ -447,7 +445,7 @@ if __name__ == "__main__":
     for p, row in sel_df.iterrows():
         for k in kinds:
             it = {"position": p + 1, "kind": k}
-            for l, v in row.iteritems():
+            for l, v in row.items():
                 if l[1] == k[0]:
                     ln = l[0] + l[-2:]
                     it[ln] = v

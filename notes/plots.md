@@ -41,18 +41,15 @@ The script `plot_gaps.py` performs a similar analysis to the one for the *consen
 
 ## Insertions
 
-The script `plot_insertions.py` will look at insertion in the reads. Other than producing the 4 plots described below, it will also select positions that contain either:
-- a high number of insertions
-- a high frequency of insertions (n. insertions / n. reads)
-Selecting preferentially ones that have insertions both on forward and reverse reads.
+The script `plot_insertions.py` will look at insertion in the reads.
 
 The produced figures are:
 - `insertions_distributions.pdf`: the distribution of number of insertions, insertion frequency and average insertion length for the different timepoints
 - `insertions_joint_distr.pdf`: for the last available timepoint plots the joint distributions of values for the forward and reverse reads for three different quantitites: number of insertions, insertion frequency and insertion length.
-- `insertions_vs_genome.pdf`:
-    - n. of insertions every 5 kbp for forward and reverse reads.
-    - avg. insertion length distribution. For each 5 kbp interval sums the product between average insertion length and insertion frequency, to have the average amount of inserted sequence every 5kbp.
-- `insertions_trajectories.pdf`: plots the insertion frequency trajectory for at different timepoints for all the selected positions. The meaning of markers and colors is similar to the one for the consens frequency trajectories.
+- `insertions_vs_genome_{L,N}.pdf`:
+    - n. of insertions on a window of 100 kbp size, stratified by timepoint and fwd/rev reads.
+    - same as previous, but instead of n. of reads it produces an histogram of average insertion length (L * insertion freq).
+- `insertions_trajectories.pdf`: plots the insertion frequency trajectory for at different timepoints for few selected positions. The meaning of markers and colors is similar to the one for the consens frequency trajectories. Positions are selected based on the (max - min) insertion frequency over time. Only points with not less than 8 insertions are considered, and points where a fisher exact test on the number of fwd vs rev insertions returns a p-value greater than 5%.
 
 The relevant positions are recorded in `insertions_selected_positions.csv`. This is similar to the csv file for the consensus frequency, with the addition of the `L` columns storing the average insertion length.
 

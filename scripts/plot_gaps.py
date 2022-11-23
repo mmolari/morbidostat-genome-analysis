@@ -11,10 +11,10 @@ except:
     from .utils.plot_utils import *
 
 
-def plot_n_ins_genome(st, step):
+def plot_n_gaps_vs_genome(st, step):
     """
-    Plots the frequency of insertions, for different timepoints and for fwd/rev reads,
-    cumulative over a window of size `step` bps.
+    Plots the cumulative frequency of gaps for different timepoints and for
+    fwd/rev reads, over a window of size `step` bps.
     """
 
     Ts = np.sort(st.times)
@@ -54,6 +54,117 @@ def plot_n_ins_genome(st, step):
         ax.xaxis.set_minor_locator(mpl.ticker.MultipleLocator(1e5))
         ax.grid(alpha=0.2, which="major")
         ax.grid(alpha=0.1, which="minor")
+
+    return fig, axs
+
+
+class glob_interval:
+    def __init__(self, p):
+        self.beg = p
+        self.end = p
+        self.len = 1
+
+    def __lt__(self, other):
+        """used for sorting"""
+        return self.beg < other.beg
+
+    def extend(self, q):
+        """Extend the interval in one direction"""
+        if q == self.beg - 1:
+            self.beg -= 1
+            self.len += 1
+            return True
+        elif q == self.end + 1:
+            self.end += 1
+            self.len += 1
+            return True
+        else:
+            return False
+
+    def attempt_merge(self, other):
+        if self.end == other.beg - 1:
+            self.end = other.end
+            return True
+        elif self.beg == other.end + 1:
+            self.beg = other.beg
+            return True
+        return False
+
+    def __str__(self):
+        return f"interval [{self.beg},{self.end}]"
+
+    def to_list(self):
+        return list(range(self.beg, self.end + 1))
+
+
+def select_and_glob_best_trajs(rank, keep, Nkeep):
+    order = np.argsort(rank)[::-1]
+
+    intervals = []
+    for o in order:
+        if not keep[o]:
+            continue
+
+        extend = False
+        for i in intervals:
+            extend |= i.extend(o)
+            if extend:
+                break
+
+        if not extend:
+            if len(intervals) == Nkeep:
+                break
+            intervals.append(glob_interval(o))
+        else:
+            intervals = list(sorted(intervals))
+            for j in range(len(intervals) - 1):
+                merged = intervals[j].attempt_merge(intervals[j + 1])
+                if merged:
+                    intervals.pop(j + 1)
+                    break
+
+    return [i.to_list() for i in intervals]
+
+
+def fig_glob_trajectories(st, G_pos, G_rank, threshold=5):
+    """
+    For each selected position, plots the frequency trajectory.
+    """
+
+    # # reorder based on rank
+    # Avg_rank = [np.mean(gr) for gr in G_rank]
+    # order = np.argsort(Avg_rank)[::-1]
+    # G_pos = [G_pos[o] for o in order]
+    # G_rank = [G_rank[o] for o in order]
+
+    Nkept = len(G_pos)
+    Nx = 3
+    Ny = int(np.ceil(Nkept / Nx))
+    figsize = (Nx * 3, Ny * 1.5)
+    fig, axs = plt.subplots(Ny, Nx, figsize=figsize, sharex=True, sharey=True)
+
+    # plot trajectories
+    leg_pos = min([2, Nkept])
+    for ntr, pos in enumerate(G_pos):
+        axidx = np.unravel_index(ntr, (Ny, Nx))
+        axidx = axidx[1] if Ny == 1 else axidx
+        ax = axs[axidx]
+        for p in pos:
+            F, N = st.traj(p)
+            plot_trajectory(ax, F, N, st.times, thr=threshold, legend=ntr == leg_pos)
+        avg_rank = np.mean(G_rank[ntr])
+        if len(pos) == 1:
+            ax.set_title(f"{pos[0] + 1}, $\Delta f$ = {avg_rank:.2}")
+        else:
+            ax.set_title(
+                rf"[{pos[0] + 1},{pos[-1] + 1}], $\langle \Delta f \rangle$ = {avg_rank:.2}"
+            )
+
+    # remove extra axes
+    for i in range(Nkept, Nx * Ny):
+        axidx = np.unravel_index(i, (Ny, Nx))
+        axidx = axidx[1] if Ny == 1 else axidx
+        axs[axidx].remove()
 
     return fig, axs
 
@@ -113,7 +224,7 @@ if __name__ == "__main__":
     # %%
     # ~~~~~~~~~~~~ PLOT 2 ~~~~~~~~~~~~
     # gap frequency histogram over time (fwd/rev)
-    fig, axs = plot_n_ins_genome(st, step=100)
+    fig, axs = plot_n_gaps_vs_genome(st, step=100)
     plt.tight_layout()
     savefig("gap_vs_genome.pdf")
     show()
@@ -130,21 +241,20 @@ if __name__ == "__main__":
 
     rank, keep = st.rank_trajs(p_threshold=p_thr, n_threshold=N_thr)
 
-    Nkeep = 100
+    Nkeep = 99
 
-    # select top positions and have their ranking
-    S_pos, S_rank = select_top_positions(
-        ranking=rank, Nmax=Nkeep, mask=keep, inverse=False
-    )
+    # select top positions (glob adjacent positions together)
+    G_pos = select_and_glob_best_trajs(rank, keep, Nkeep)
+    G_rank = [[rank[p] for p in i] for i in G_pos]
 
     # %%
     # ~~~~~~~~~~~~ PLOT 4 ~~~~~~~~~~~~
     # frequency trajectories
     vprint(f"preparing plot 4: frequency trajectories of selected sites")
 
-    fig, axs = fig_trajectories(st, S_pos, S_rank)
-    fig.supylabel("gap frequency")
-    fig.supxlabel("timepoint")
+    fig, axs = fig_glob_trajectories(st, G_pos, G_rank)
+    # fig.supylabel("gap frequency")
+    # fig.supxlabel("timepoint")
     plt.tight_layout()
     savefig("gap_freq_trajs.pdf")
     show()
@@ -156,6 +266,8 @@ if __name__ == "__main__":
     vprint(f"export csv file with selected positions")
 
     # add columns to the dataframe: pvalues and delta frequency
+    S_pos = np.concatenate(G_pos)
+    S_rank = np.concatenate(G_rank)
     rank_dict = {}
     for p, r in zip(S_pos, S_rank):
         rank_dict[p] = r

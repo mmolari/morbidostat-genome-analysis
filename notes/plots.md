@@ -17,9 +17,10 @@ The script `plot_coverage.py` analyzes the coverage, defined as number of reads 
 
 The script `plot_consensus_freq.py` analyzes for each site the *consensus frequency* (or better, the *reference frequency*), i.e. the fraction of times that reads mapping on a different position are the same as in the reference genome.
 
-This script select the 100 positions that have the highest (most negative) difference between final and initial consensus frequency. These are the reads that are more likely to have undergone a mutation. It exclude positions that:
-- do not have at least 10 reads (forward + reverse)
-- position whose binomial p-value $p = p_f \times p_r < 5\%$ for reads at the final timepoint. The binomial p-values for forward $p_f$ and reverse $p_r$ reads are the p-values given by the binomial test that verify whether the number of consenus reads on forward or reverse reads are compatible with a binomial distribution having probability equal to the average frequency of consensus reads (fwd + rev). This is done to exclude positions in which forward and reverse have very different consensus frequencies.
+This script select the 99 positions that have the highest absolute consensus frequency change over time. These are the reads that are more likely to have undergone a mutation.
+The absolute change is defined as the (max - min) consensus frequency over time. Timepoints that do not meet the following criteria are excluded:
+- have at least 10 fwd and 10 rev reads.
+- positions in which the fisher exact test for n. of consensus vs non-consensus reads restitutes a p-value > 5%. This is done to exclude reads with a strong fwd/rev disagreement.
 
 The produced figures are:
 
@@ -38,6 +39,11 @@ The csv file `consensus_selected_positions.csv` has three lines per relevant pos
 ## Gap frequency
 
 The script `plot_gaps.py` performs a similar analysis to the one for the *consensus frequency*, but instead of the fraction of consensus reads this will consider the fraction of reads that contain a gap.
+
+Two plots are different from consensus plots:
+- `gap_vs_genome.pdf`: cumulative gap frequency over a window of 100bps, stratified by time and fwd/rev reads. Gaps that form over time should be visible as an increase in this frequency.
+
+
 
 ## Insertions
 

@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     rank, keep = st.rank_trajs(p_threshold=p_thr, n_threshold=N_thr)
 
-    Nkeep = 100
+    Nkeep = 99
 
     # select top positions and have their ranking
     S_pos, S_rank = select_top_positions(

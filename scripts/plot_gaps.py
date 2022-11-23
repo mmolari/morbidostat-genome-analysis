@@ -59,13 +59,16 @@ def plot_n_gaps_vs_genome(st, step):
 
 
 class glob_interval:
+    """Class that describes an interval of positions, used to
+    group trajectories together."""
+
     def __init__(self, p):
         self.beg = p
         self.end = p
         self.len = 1
 
     def __lt__(self, other):
-        """used for sorting"""
+        """sort based on beginning position"""
         return self.beg < other.beg
 
     def extend(self, q):
@@ -82,6 +85,8 @@ class glob_interval:
             return False
 
     def attempt_merge(self, other):
+        """attempt to merge two indervals if beg-end are only 1 apart.
+        Modifies self and returns True in case of success."""
         if self.end == other.beg - 1:
             self.end = other.end
             return True
@@ -94,17 +99,33 @@ class glob_interval:
         return f"interval [{self.beg},{self.end}]"
 
     def to_list(self):
+        """Returns a list of interval positions"""
         return list(range(self.beg, self.end + 1))
 
 
 def select_and_glob_best_trajs(rank, keep, Nkeep):
+    """Select Nkeep trajectory groups, returning a list of positions for each group.
+    Trajectories are ordered based on their rank, and only trajectores with
+    keep=True are considered.
+    Trajectories are progressively added to the list of groups. If a position falls
+    on the edge of a group, it is added to the group instead of forming a new group.
+    Groups can be merged together if they have matching edges. This stops once
+    Nkeep groups are formed and no more trajectories can be added to the groups
+    without creating a new one."""
+
+    # order trajectories by rank
     order = np.argsort(rank)[::-1]
 
+    # list of intervals to populate
     intervals = []
+
     for o in order:
+
+        # skeep trajectories with keep=False
         if not keep[o]:
             continue
 
+        # try to extend an existing interval
         extend = False
         for i in intervals:
             extend |= i.extend(o)
@@ -112,23 +133,25 @@ def select_and_glob_best_trajs(rank, keep, Nkeep):
                 break
 
         if not extend:
+            # if failure, create a new singleton group with the position
             if len(intervals) == Nkeep:
                 break
             intervals.append(glob_interval(o))
         else:
+            # if success, check if two adjacent intervals can be merged
             intervals = list(sorted(intervals))
             for j in range(len(intervals) - 1):
                 merged = intervals[j].attempt_merge(intervals[j + 1])
                 if merged:
                     intervals.pop(j + 1)
                     break
-
+    # return a list of positions for each interval
     return [i.to_list() for i in intervals]
 
 
 def fig_glob_trajectories(st, G_pos, G_rank, threshold=5):
     """
-    For each selected position, plots the frequency trajectory.
+    For each selected position group, plots the frequency trajectory.
     """
 
     # # reorder based on rank

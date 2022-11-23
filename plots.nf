@@ -15,7 +15,7 @@ def extract_vial_n(fld) {
 // process to perform plots
 process plot_script {
 
-    label 'q30m_1core_highmem'
+    label 'q6h_1core'
     conda 'conda_envs/bioinfo_raw.yml'
 
     publishDir "figures/${input_dir.getName()}/vial_${vial}/", mode: 'copy'

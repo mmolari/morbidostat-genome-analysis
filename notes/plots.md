@@ -43,7 +43,6 @@ The script `plot_gaps.py` performs a similar analysis to the one for the *consen
 
 The script `plot_insertions.py` will look at insertion in the reads. Other than producing the 4 plots described below, it will also select positions that contain either:
 - a high number of insertions
-- long insertions
 - a high frequency of insertions (n. insertions / n. reads)
 Selecting preferentially ones that have insertions both on forward and reverse reads.
 

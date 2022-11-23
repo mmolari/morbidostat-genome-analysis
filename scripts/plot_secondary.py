@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from matplotlib.ticker import MultipleLocator
+from matplotlib.lines import Line2D
 
 
 def parse_args():
@@ -54,6 +55,14 @@ if __name__ == "__main__":
     ax = axs[0]
     for x, y, c in links:
         ax.plot(x, y, alpha=0.1, color="k" if c else "r", rasterized=True)
+
+    # legend
+    legend_elements = [
+        Line2D([0], [0], color=c, label=k, alpha=0.3)
+        for k, c in zip(["fwd", "rev"], ["k", "r"])
+    ]
+    ax.legend(handles=legend_elements, loc="upper right")
+
     ax.axis("equal")
     ax.set_xlabel("primary read location (bp)")
     ax.set_ylabel("secondary read location (bp)")

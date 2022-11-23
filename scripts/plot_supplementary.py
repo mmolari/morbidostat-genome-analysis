@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 from itertools import combinations
 from matplotlib.ticker import MultipleLocator
+from matplotlib.lines import Line2D
 
 
 def parse_args():
@@ -70,6 +71,12 @@ if __name__ == "__main__":
     X, Y, C = [[l[i] for l in links] for i in range(3)]
     C = ["k" if c else "r" for c in C]
     ax.scatter(X, Y, alpha=0.03, color=C, rasterized=True)
+
+    legend_elements = [
+        Line2D([0], [0], marker="o", color="w", label=k, markerfacecolor=c, alpha=0.3)
+        for k, c in zip(["fwd", "rev"], ["k", "r"])
+    ]
+    ax.legend(handles=legend_elements, loc="upper right")
 
     ax.axis("equal")
     ax.set_xlabel("primary read location (bp)")

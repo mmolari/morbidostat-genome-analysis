@@ -337,12 +337,12 @@ if __name__ == "__main__":
 
     # %%
 
-    # debug purpose
-    data_path = pth.Path("../results/2022-amoxicilin/vial_7")
-    savefig = lambda x: None
-    show = plt.show
-    vprint = print
-    fig_path = pth.Path("../figures/2022-amoxicilin/vial_7")
+    # # debug purpose
+    # data_path = pth.Path("../results/2022-amoxicilin/vial_7")
+    # savefig = lambda x: None
+    # show = plt.show
+    # vprint = print
+    # fig_path = pth.Path("../figures/2022-amoxicilin/vial_7")
 
     # %%
 

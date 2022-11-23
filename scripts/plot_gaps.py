@@ -11,6 +11,53 @@ except:
     from .utils.plot_utils import *
 
 
+def plot_n_ins_genome(st, step):
+    """
+    Plots the frequency of insertions, for different timepoints and for fwd/rev reads,
+    cumulative over a window of size `step` bps.
+    """
+
+    Ts = np.sort(st.times)
+    NT = len(Ts)
+
+    fig, axs = plt.subplots(NT, 1, figsize=(12, NT * 4), sharex=True)
+
+    for nt, t in enumerate(Ts):
+        ax = axs[nt]
+
+        pos = np.sort(st.df.position.unique())
+        bins = np.arange(0, pos.max() + 2 * step, step)
+
+        for k in ["fwd", "rev"]:
+            g = 1 if k == "fwd" else -1
+            F = st.freq(t, k)
+            F = np.nan_to_num(F, nan=0.0)
+            ax.hist(
+                pos,
+                weights=F * g,
+                bins=bins,
+                histtype="step",
+                label=k,
+                rasterized=True,
+            )
+        ax.legend()
+        ax.set_xlim(bins[0] - step * 5, bins[-1] + step * 5)
+        ax.set_xlabel("genome position (bp)")
+        ax.set_ylabel(f"n. gaps per {step} bp")
+        ax.grid(alpha=0.3)
+        ax.set_title(f"t = {t}")
+        ytl = [int(y) for y in ax.get_yticks()]
+        ax.set_yticks(ytl)
+        ax.set_yticklabels([str(y).lstrip("-") for y in ytl])
+
+        ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(1e6))
+        ax.xaxis.set_minor_locator(mpl.ticker.MultipleLocator(1e5))
+        ax.grid(alpha=0.2, which="major")
+        ax.grid(alpha=0.1, which="minor")
+
+    return fig, axs
+
+
 # %%
 
 if __name__ == "__main__":
@@ -61,6 +108,14 @@ if __name__ == "__main__":
 
     plt.tight_layout()
     savefig("gap_freq_distributions.pdf")
+    show()
+
+    # %%
+    # ~~~~~~~~~~~~ PLOT 2 ~~~~~~~~~~~~
+    # gap frequency histogram over time (fwd/rev)
+    fig, axs = plot_n_ins_genome(st, step=100)
+    plt.tight_layout()
+    savefig("gap_vs_genome.pdf")
     show()
 
     # %%

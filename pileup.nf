@@ -6,7 +6,7 @@ params.input_fld = "test_dataset"
 params.time_beg = 1
 
 // Parameters for the pileup script
-params.qual_min = 5
+params.qual_min = 15
 params.clip_minL = 100
 
 // input files directory

@@ -2,29 +2,27 @@
 params.input_fld = "results/test_dataset"
 
 // input files directory
-input_dir = file(params.input_fld)
+input_dir = file(params.input_fld.replaceAll('/$',''))
 assert input_dir.isDirectory()
 
-// source scripts directory
-script_dir = file("$baseDir/scripts")
+// function to extract vial number from folder name
+def extract_vial_n(fld) {
+    regex = /\/vial_(\d+)$/
+    match = (fld =~ regex)[0]
+    return [vial: match[1] as Integer, fld: fld]
+}
 
-
-// reads input channel. Has items [n. vial, timepoint, file]
-regex = /\/vial_(\d+)/
-input_ch = Channel.fromPath("${input_dir}/vial_*", type:"dir")
-    .map { it -> [vial: (it =~ regex)[0][1], fld: it] }
-
-plot_scripts = ["plot_coverage.py", "plot_consensus_freq.py", "plot_gaps.py", "plot_insertions.py", "plot_clips.py"]
-
-
+// process to perform plots
 process plot_script {
-    label 'q30m_1core'
+
+    label 'q6h_1core'
+    conda 'conda_envs/bioinfo_raw.yml'
 
     publishDir "figures/${input_dir.getName()}/vial_${vial}/", mode: 'copy'
 
     input:
-        tuple val(vial), path(vial_fld) from input_ch
-        each script from plot_scripts
+        tuple val(vial), path(vial_fld)
+        each script
 
     output:
         path("*.pdf")
@@ -32,6 +30,25 @@ process plot_script {
 
     script:
         """
-        python3 $script_dir/$script --vial_fld $vial_fld --fig_fld .
+        python3 $baseDir/scripts/$script --vial_fld $vial_fld --fig_fld .
         """
+}
+
+workflow {
+
+    // channel for vial folders [vial_n, vial_fld]
+    vials = Channel.fromPath("${input_dir}/vial_*", type:"dir")
+        .map { it -> extract_vial_n(it) }
+
+    // list of plot scripts
+    scripts = [
+        "plot_coverage.py",
+        "plot_consensus_freq.py",
+        "plot_gaps.py",
+        "plot_insertions.py",
+        "plot_clips.py"
+        ]
+
+    // execute plot scripts on each vial
+    plot_script(vials, scripts)
 }

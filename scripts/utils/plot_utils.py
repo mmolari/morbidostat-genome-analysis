@@ -11,7 +11,7 @@ from Bio import SeqIO
 from scipy.stats import binomtest
 
 
-from extract_stats_utils import StatsTable
+from .extract_stats_utils import StatsTable
 
 
 # ~~~~~~~~~~~~~~~~ SCRIPT UTILS ~~~~~~~~~~~~~~~~

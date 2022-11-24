@@ -19,7 +19,7 @@ def sam_to_allele_counts(
     sam_fname   --  sam or bam file with mapped reads
     qual_min    --  Ignore bases with quality less than qmin
                     and insertions with less than 70% reads meeting this threshold
-    clip_minL   --  ignore clipped reads with less than this threshold quality
+    clip_minL   --  ignore clipped reads with less than this threshold length
     """
     import pysam
     from collections import defaultdict

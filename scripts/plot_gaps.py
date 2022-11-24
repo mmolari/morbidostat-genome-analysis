@@ -6,83 +6,188 @@ import matplotlib.pyplot as plt
 import re
 
 try:
-    from plot_utils import *
+    from utils.plot_utils import *
 except:
-    from .plot_utils import *
+    from .utils.plot_utils import *
 
 
-# %%
-
-
-def plot_2_pval_2dhist(pval_f, pval_r, p_thr):
+def plot_n_gaps_vs_genome(st, step):
     """
-    Plot the joint distribution of binomial p-values for the forward and
-    reverse reads, together with the marginal distributions. The red line
-    represents the acceptance threshold below which positions are discarded.
+    Plots the cumulative frequency of gaps for different timepoints and for
+    fwd/rev reads, over a window of size `step` bps.
     """
 
-    fig, axs = plt.subplot_mosaic(
-        """
-        B.
-        AC
-        """,
-        figsize=(8, 8),
-        gridspec_kw={
-            "height_ratios": [0.4, 1.0],
-            "width_ratios": [1.0, 0.4],
-        },
-    )
+    Ts = np.sort(st.times)
+    NT = len(Ts)
 
-    bins = np.linspace(0, 1, 50)
-    norm = mpl.colors.LogNorm(vmin=0.1)
+    fig, axs = plt.subplots(NT, 1, figsize=(12, NT * 4), sharex=True)
 
-    ax = axs["A"]
-    ax.hist2d(pval_f, pval_r, bins=bins, norm=norm, cmap="Blues")
-    x = np.linspace(p_thr, 1, 50)
-    y = p_thr / x
-    ax.plot(x, y, color="red")
-    ax.set_xlabel("p-value forward")
-    ax.set_ylabel("p-value reverse")
+    for nt, t in enumerate(Ts):
+        ax = axs[nt]
 
-    ax = axs["B"]
-    ax.hist(pval_f, bins=bins)
-    ax.set_yscale("log")
-    ax.set_xlim(0, 1)
-    ax.set_ylabel("n. sites")
+        pos = np.sort(st.df.position.unique())
+        bins = np.arange(0, pos.max() + 2 * step, step)
 
-    ax = axs["C"]
-    ax.hist(pval_r, bins=bins, orientation="horizontal")
-    ax.set_xscale("log")
-    ax.set_ylim(0, 1)
-    ax.set_xlabel("n. sites")
+        for k in ["fwd", "rev"]:
+            g = 1 if k == "fwd" else -1
+            F = st.freq(t, k)
+            F = np.nan_to_num(F, nan=0.0)
+            ax.hist(
+                pos,
+                weights=F * g,
+                bins=bins,
+                histtype="step",
+                label=k,
+                rasterized=True,
+            )
+        ax.legend()
+        ax.set_xlim(bins[0] - step * 5, bins[-1] + step * 5)
+        ax.set_xlabel("genome position (bp)")
+        ax.set_ylabel(f"n. gaps per {step} bp")
+        ax.grid(alpha=0.3)
+        ax.set_title(f"t = {t}")
+        ytl = [int(y) for y in ax.get_yticks()]
+        ax.set_yticks(ytl)
+        ax.set_yticklabels([str(y).lstrip("-") for y in ytl])
 
-    return fig, ax
+        ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(1e6))
+        ax.xaxis.set_minor_locator(mpl.ticker.MultipleLocator(1e5))
+        ax.grid(alpha=0.2, which="major")
+        ax.grid(alpha=0.1, which="minor")
+
+    return fig, axs
 
 
-def plot_3_pval_deltafreq(pval_tot, rank, Ne, N_thr, p_thr):
-    """2D histogram of the delta-frequency vs the total p-value, separated in positions
-    with more or less than `N_thr` counts."""
+class glob_interval:
+    """Class that describes an interval of positions, used to
+    group trajectories together."""
 
-    mask = Ne["tot"] >= N_thr
+    def __init__(self, p):
+        self.beg = p
+        self.end = p
+        self.len = 1
 
-    bins = [np.linspace(-1, 1, 50), np.linspace(0, 1, 25)]
-    norm = mpl.colors.LogNorm(vmin=0.1)
-    fig, axs = plt.subplots(1, 2, figsize=(10, 4))
-    for i, m in enumerate([mask, ~mask]):
-        ax = axs[i]
-        s = ax.hist2d(
-            rank[m],
-            pval_tot[m],
-            bins=bins,
-            norm=norm,
-            cmap="Blues",
-        )
-        ax.axhline(p_thr, c="gray", ls="--")
-        ax.set_xlabel("gap frequency difference (final-initial)")
-        ax.set_ylabel("p-value product (p-fwd*p-rev)")
-        plt.colorbar(s[3], ax=ax, label="N. sites")
-    axs[0].set_title(f"N $\geq$ {N_thr}")
-    axs[1].set_title(f"N < {N_thr}")
+    def __lt__(self, other):
+        """sort based on beginning position"""
+        return self.beg < other.beg
+
+    def extend(self, q):
+        """Extend the interval in one direction"""
+        if q == self.beg - 1:
+            self.beg -= 1
+            self.len += 1
+            return True
+        elif q == self.end + 1:
+            self.end += 1
+            self.len += 1
+            return True
+        else:
+            return False
+
+    def attempt_merge(self, other):
+        """attempt to merge two indervals if beg-end are only 1 apart.
+        Modifies self and returns True in case of success."""
+        if self.end == other.beg - 1:
+            self.end = other.end
+            return True
+        elif self.beg == other.end + 1:
+            self.beg = other.beg
+            return True
+        return False
+
+    def __str__(self):
+        return f"interval [{self.beg},{self.end}]"
+
+    def to_list(self):
+        """Returns a list of interval positions"""
+        return list(range(self.beg, self.end + 1))
+
+
+def select_and_glob_best_trajs(rank, keep, Nkeep):
+    """Select Nkeep trajectory groups, returning a list of positions for each group.
+    Trajectories are ordered based on their rank, and only trajectores with
+    keep=True are considered.
+    Trajectories are progressively added to the list of groups. If a position falls
+    on the edge of a group, it is added to the group instead of forming a new group.
+    Groups can be merged together if they have matching edges. This stops once
+    Nkeep groups are formed and no more trajectories can be added to the groups
+    without creating a new one."""
+
+    # order trajectories by rank
+    order = np.argsort(rank)[::-1]
+
+    # list of intervals to populate
+    intervals = []
+
+    for o in order:
+
+        # skeep trajectories with keep=False
+        if not keep[o]:
+            continue
+
+        # try to extend an existing interval
+        extend = False
+        for i in intervals:
+            extend |= i.extend(o)
+            if extend:
+                break
+
+        if not extend:
+            # if failure, create a new singleton group with the position
+            if len(intervals) == Nkeep:
+                break
+            intervals.append(glob_interval(o))
+        else:
+            # if success, check if two adjacent intervals can be merged
+            intervals = list(sorted(intervals))
+            for j in range(len(intervals) - 1):
+                merged = intervals[j].attempt_merge(intervals[j + 1])
+                if merged:
+                    intervals.pop(j + 1)
+                    break
+    # return a list of positions for each interval
+    return [i.to_list() for i in intervals]
+
+
+def fig_glob_trajectories(st, G_pos, G_rank, threshold=5):
+    """
+    For each selected position group, plots the frequency trajectory.
+    """
+
+    # # reorder based on rank
+    # Avg_rank = [np.mean(gr) for gr in G_rank]
+    # order = np.argsort(Avg_rank)[::-1]
+    # G_pos = [G_pos[o] for o in order]
+    # G_rank = [G_rank[o] for o in order]
+
+    Nkept = len(G_pos)
+    Nx = 3
+    Ny = int(np.ceil(Nkept / Nx))
+    figsize = (Nx * 3, Ny * 1.5)
+    fig, axs = plt.subplots(Ny, Nx, figsize=figsize, sharex=True, sharey=True)
+
+    # plot trajectories
+    leg_pos = min([2, Nkept])
+    for ntr, pos in enumerate(G_pos):
+        axidx = np.unravel_index(ntr, (Ny, Nx))
+        axidx = axidx[1] if Ny == 1 else axidx
+        ax = axs[axidx]
+        for p in pos:
+            F, N = st.traj(p)
+            plot_trajectory(ax, F, N, st.times, thr=threshold, legend=ntr == leg_pos)
+        avg_rank = np.mean(G_rank[ntr])
+        if len(pos) == 1:
+            ax.set_title(f"{pos[0] + 1}, $\Delta f$ = {avg_rank:.2}")
+        else:
+            ax.set_title(
+                rf"[{pos[0] + 1},{pos[-1] + 1}], $\langle \Delta f \rangle$ = {avg_rank:.2}"
+            )
+
+    # remove extra axes
+    for i in range(Nkept, Nx * Ny):
+        axidx = np.unravel_index(i, (Ny, Nx))
+        axidx = axidx[1] if Ny == 1 else axidx
+        axs[axidx].remove()
 
     return fig, axs
 
@@ -104,7 +209,7 @@ if __name__ == "__main__":
 
     # %%
 
-    # data_path = pth.Path("../results/2022-05-11_RT-Tol-Res/vial_01")
+    # data_path = pth.Path("../results/2022-amoxicilin/vial_7")
     # savefig = lambda x: None
     # show = plt.show
     # vprint = print
@@ -140,58 +245,39 @@ if __name__ == "__main__":
     show()
 
     # %%
+    # ~~~~~~~~~~~~ PLOT 2 ~~~~~~~~~~~~
+    # gap frequency histogram over time (fwd/rev)
+    fig, axs = plot_n_gaps_vs_genome(st, step=100)
+    plt.tight_layout()
+    savefig("gap_vs_genome.pdf")
+    show()
+
+    # %%
     # ~~~~~~~~~~~~ FILTER ~~~~~~~~~~~~
     # rank trajectories by delta-frequency
     # evaluate binomial p-values to see if forward and reverse gap frequencies
     # are compatible with the average frequency
     vprint(f"selecting positions with high delta frequency")
 
-    # binomial
-    pval_f = binomial_pvals(Fe["fwd"], Ne["fwd"], Fe["tot"])
-    pval_r = binomial_pvals(Fe["rev"], Ne["rev"], Fe["tot"])
-
     p_thr = 0.05
     N_thr = 10
-    pval_tot = pval_f * pval_r
-    rank = Fe["tot"] - Fb["tot"]
-    keep = pval_tot >= p_thr
-    keep &= Ne["tot"] >= N_thr
-    Nkeep = 100
 
-    # select top positions and have their ranking
-    S_pos, S_rank = select_top_positions(
-        ranking=rank, Nmax=Nkeep, mask=keep, inverse=False
-    )
+    rank, keep = st.rank_trajs(p_threshold=p_thr, n_threshold=N_thr)
 
-    # %%
-    # ~~~~~~~~~~~~ PLOT 2 ~~~~~~~~~~~~
-    # p-values forward-reverse 2d histogram
-    vprint(f"preparing plot 2: p-value joint distribution")
+    Nkeep = 99
 
-    fig, axs = plot_2_pval_2dhist(pval_f, pval_r, p_thr)
-    plt.tight_layout()
-    savefig("gap_pvalue_distribution.pdf")
-    show()
-
-    # %%
-
-    # ~~~~~~~~~~~~ PLOT 3 ~~~~~~~~~~~~
-    # p-value vs delta frequency for N above or below threshold
-    vprint(f"preparing plot 3: p-value vs delta frequency distribution")
-
-    fig, axs = plot_3_pval_deltafreq(pval_tot, rank, Ne, N_thr, p_thr)
-    plt.tight_layout()
-    savefig("gap_pvalue_vs_freqdiff.pdf")
-    show()
+    # select top positions (glob adjacent positions together)
+    G_pos = select_and_glob_best_trajs(rank, keep, Nkeep)
+    G_rank = [[rank[p] for p in i] for i in G_pos]
 
     # %%
     # ~~~~~~~~~~~~ PLOT 4 ~~~~~~~~~~~~
     # frequency trajectories
     vprint(f"preparing plot 4: frequency trajectories of selected sites")
 
-    fig, axs = fig_trajectories(st, S_pos, S_rank)
-    fig.supylabel("gap frequency")
-    fig.supxlabel("timepoint")
+    fig, axs = fig_glob_trajectories(st, G_pos, G_rank)
+    # fig.supylabel("gap frequency")
+    # fig.supxlabel("timepoint")
     plt.tight_layout()
     savefig("gap_freq_trajs.pdf")
     show()
@@ -203,18 +289,15 @@ if __name__ == "__main__":
     vprint(f"export csv file with selected positions")
 
     # add columns to the dataframe: pvalues and delta frequency
-    pval_dict = {}
+    S_pos = np.concatenate(G_pos)
+    S_rank = np.concatenate(G_rank)
     rank_dict = {}
     for p, r in zip(S_pos, S_rank):
         rank_dict[p] = r
-        pval_dict[(p, "fwd")] = pval_f[p]
-        pval_dict[(p, "rev")] = pval_r[p]
-        pval_dict[(p, "tot")] = pval_f[p] * pval_r[p]
 
     # select relevant positions and add columns
     mask = st.df["position"].isin(S_pos)
     sdf = st.df[mask].copy()
-    sdf["pval"] = sdf.apply(lambda x: pval_dict[(x.position, x.type)], axis=1)
     sdf["rank"] = sdf.apply(lambda x: rank_dict[x.position], axis=1)
 
     # make position 1-based

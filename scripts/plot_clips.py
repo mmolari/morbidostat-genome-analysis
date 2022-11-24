@@ -6,12 +6,14 @@ import re
 
 import pandas as pd
 
+from matplotlib.ticker import MultipleLocator
+
 try:
-    from plot_utils import *
-    from extract_stats_utils import safe_division
+    from utils.plot_utils import *
+    from utils.extract_stats_utils import safe_division
 except:
-    from .plot_utils import *
-    from .extract_stats_utils import safe_division
+    from .utils.plot_utils import *
+    from .utils.extract_stats_utils import safe_division
 
 
 # %%
@@ -186,6 +188,11 @@ def plot_n_clips_genome(dfs, step=5000):
         ax.set_yticks(ytl)
         ax.set_yticklabels([str(y).lstrip("-") for y in ytl])
 
+        ax.xaxis.set_major_locator(MultipleLocator(1e6))
+        ax.xaxis.set_minor_locator(MultipleLocator(1e5))
+        ax.grid(alpha=0.2, which="major")
+        ax.grid(alpha=0.1, which="minor")
+
     return fig, axs
 
 
@@ -213,9 +220,12 @@ def plot_trajectories(sel_df, Ts, threshold=5, Nx=3):
         axidx = axidx[1] if Ny == 1 else axidx
         ax = axs[axidx]
         plot_trajectory(ax, C, N, Ts, thr=threshold, legend=ntr == leg_pos)
-        i = int(row[f"Ct_{Tf}"])
-        l = row[f"Lt_{Tf}"]
-        ax.set_title(f"pos={p+1}, C={i}, " + r"$\langle L \rangle$" + f"={int(l)}")
+        Ctots = [row[f"Ct_{t}"] for t in Ts]
+        idx_max = np.argmax(Ctots)
+        Cmax = int(Ctots[idx_max])
+        Tmax = Ts[idx_max]
+        l = row[f"Lt_{Tmax}"]
+        ax.set_title(f"{p+1}, Cmax={Cmax}, " + r"$\langle L \rangle$" + f"={int(l)}")
         ax.grid(alpha=0.3)
     ax.set_yscale("symlog", linthresh=1.0)
     ax.set_ylim(bottom=0)
@@ -230,6 +240,41 @@ def plot_trajectories(sel_df, Ts, threshold=5, Nx=3):
     fig.supxlabel("timepoint")
 
     return fig, axs
+
+
+def select_clip_positions(dfs, Nkeep):
+    """Select clip positions with maximum delta-count over time."""
+
+    # list of all positions over all timepoints
+    clip_positions = [df.index.to_numpy() for df in dfs.values()]
+    clip_positions = np.sort(np.unique(np.concatenate(clip_positions)))
+    pos_idx = {p: i for i, p in enumerate(clip_positions)}
+
+    # list of times
+    Ts = list(sorted(dfs.keys()))
+
+    # create empty count container
+    Npos = len(clip_positions)
+    Ntimes = len(Ts)
+    Nclips = np.zeros((Ntimes, Npos), dtype=int)
+
+    # fill with number of clip counts per position
+    for n, t in enumerate(Ts):
+        df = dfs[t]
+        C = df["Ct"]
+        idxs = [pos_idx[p] for p in df.index]
+        Nclips[n, idxs] = C
+
+    # evaluate delta = max - min
+    Nclips = Nclips.T
+    delta = np.max(Nclips, axis=1) - np.min(Nclips, axis=1)
+
+    # select positions with maximum delta
+    order = np.argsort(delta)[::-1]
+    idx_keep = order[:Nkeep]
+    selected_pos = np.sort(clip_positions[idx_keep])
+
+    return selected_pos
 
 
 # %%
@@ -250,7 +295,7 @@ if __name__ == "__main__":
     # %%
 
     # debug purpose
-    # data_path = pth.Path("../results/2022-05-11_RT-Tol-Res/vial_04")
+    # data_path = pth.Path("../results/2022-amoxicilin/vial_7")
     # savefig = lambda x: None
     # show = plt.show
     # vprint = print
@@ -294,22 +339,14 @@ if __name__ == "__main__":
     show()
 
     # %%
-    # select relevant positions
-    df = dfs[Tf]
-    # at least one clip in both directions, or a high number of clips than three times the std
-    std = df["Ct"][df["Ct"] > 0].std()
-    mask = ((df["Cf"] > 0) & (df["Cr"] > 0)) | (df["Ct"] > std * 3)
-    NposC = 50  # number of max selected positions
-    #  select positions with highest total number of clips
-    selected_pos = list(df[mask]["Ct"].sort_values(ascending=False)[:NposC].index)
-    selected_pos = np.sort(np.unique(selected_pos))
+    # select positions with maximum delta-number of clips (WARNING: not normalized)
+    Nkeep = 51  # number of max selected positions
+    selected_pos = select_clip_positions(dfs, Nkeep)
 
     # %%
     # create dataframe with only selected positions
-    sel_df = dfs[Tf].loc[selected_pos].add_suffix(f"_{Tf}")
+    sel_df = pd.DataFrame([], index=selected_pos)
     for t in Ts[::-1]:
-        if t == Tf:
-            continue
         sel_df = sel_df.join(dfs[t].add_suffix(f"_{t}"), how="left")
     sel_df = sel_df.fillna(0)
     tp = lambda k: float if k.startswith("F") else int

@@ -54,21 +54,25 @@ def build_insertion_dataframes(insertions, stats_table):
         df["If"], df["Ir"] = I[:, 0], I[:, 1]
         df["It"] = I.sum(axis=1)
 
-        # number of reads
-        df["Nf"] = stats_table.N(t, kind="fwd")[pos]
-        df["Nr"] = stats_table.N(t, kind="rev")[pos]
-        df["Nt"] = df["Nf"] + df["Nr"]
-
-        # frequency of insertions
-        df["Ff"] = safe_division(df["If"], df["Nf"])
-        df["Fr"] = safe_division(df["Ir"], df["Nr"])
-        df["Ft"] = safe_division(df["It"], df["Nt"])
-
         # average read length
         Ltot = np.vstack([L_tot(ins[p]) for p in pos])
         df["Lf"] = safe_division(Ltot[:, 0], df["If"])
         df["Lr"] = safe_division(Ltot[:, 1], df["Ir"])
         df["Lt"] = Ltot.sum(axis=1) / df["It"]
+
+        # number of reads
+        df["Nf"] = stats_table.N(t, kind="fwd")[pos]
+        df["Nr"] = stats_table.N(t, kind="rev")[pos]
+        df["Nt"] = df["Nf"] + df["Nr"]
+
+        # renormalize because of quality filtering (the two might differ in some places)
+        df["If"] = np.minimum(df["If"],df["Nf"])
+        df["Ir"] = np.minimum(df["Ir"],df["Nr"])
+
+        # frequency of insertions
+        df["Ff"] = safe_division(df["If"], df["Nf"])
+        df["Fr"] = safe_division(df["Ir"], df["Nr"])
+        df["Ft"] = safe_division(df["It"], df["Nt"])
 
         # build dataframe
         dfs[t] = pd.DataFrame(df, index=pos)

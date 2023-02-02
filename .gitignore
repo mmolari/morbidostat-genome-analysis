@@ -4,6 +4,7 @@
 /work
 /.nextflow*
 /reports
+/report.html
 /results
 /makefile
 /figures

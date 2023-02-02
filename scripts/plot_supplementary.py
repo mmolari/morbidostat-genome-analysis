@@ -83,10 +83,11 @@ if __name__ == "__main__":
     ax.set_ylabel("suppl. read location (bp)")
 
     # diagonal and ax limits
-    X = sdf.re.max()
-    ax.plot([0, X], [0, X], ls=":", color="gray")
-    ax.set_xlim(-X * 0.02, X * 1.02)
-    ax.set_ylim(-X * 0.02, X * 1.02)
+    if len(sdf) > 0:
+        X = sdf.re.max()
+        ax.plot([0, X], [0, X], ls=":", color="gray")
+        ax.set_xlim(-X * 0.02, X * 1.02)
+        ax.set_ylim(-X * 0.02, X * 1.02)
 
     for k in [ax.xaxis, ax.yaxis]:
         k.set_major_locator(MultipleLocator(1e6))
